@@ -199,9 +199,6 @@ def generate_pdf():
         excel_data = data.get('data', [])
         template_name = data.get('template', '')
         use_word_template = data.get('useWordTemplate', False)
-        template_type = data.get('templateType', 'word')
-        template_html = data.get('templateHtml', '')
-        template_text = data.get('templateText', '')
         
         print(f"🔍 DEBUG: Recebido request de geração")
         print(f"   Template Name: '{template_name}'")
@@ -216,15 +213,12 @@ def generate_pdf():
         # Se apenas uma linha, gerar PDF único
         if len(excel_data) == 1:
             print(f"   📄 Gerando PDF único")
-            if template_type == 'html' and template_html:
-                print(f"   🎨 Usando template HTML")
-                pdf_buffer = generate_html_pdf_with_formatting(excel_data[0], template_html)
-            elif use_word_template and template_name:
+            if use_word_template and template_name:
                 print(f"   🎨 Usando template Word: {template_name}")
                 pdf_buffer = generate_word_pdf_ultra_optimized(excel_data[0], template_name)
             else:
-                print(f"   📝 Usando template de texto")
-                template_text = template_text or DEFAULT_TEMPLATE
+                print(f"   📝 Usando template padrão")
+                template_text = DEFAULT_TEMPLATE
                 pdf_buffer = generate_simple_pdf_optimized(excel_data[0], template_text)
             
             # Nome do arquivo baseado no número
@@ -262,7 +256,7 @@ def generate_pdf():
         # Iniciar geração em background com processamento paralelo
         thread = threading.Thread(
             target=generate_multiple_pdfs_parallel,
-            args=(excel_data, template_name, use_word_template, job_id, template_type, template_html, template_text)
+            args=(excel_data, template_name, use_word_template, job_id)
         )
         thread.daemon = True
         thread.start()
@@ -332,7 +326,7 @@ def download_result(job_id):
     except Exception as e:
         return jsonify({'error': f'Erro ao baixar arquivo: {str(e)}'}), 500
 
-def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template, job_id, template_type='word', template_html='', template_text=''):
+def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template, job_id):
     """Gera múltiplos PDFs usando processamento paralelo otimizado"""
     try:
         print(f"🚀 SUPER ULTRA: Gerando {len(data_list)} PDFs")
@@ -360,12 +354,6 @@ def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template,
         # Dividir dados em chunks SUPER ULTRA
         chunks = [data_list[i:i + chunk_size] for i in range(0, len(data_list), chunk_size)]
         print(f"   Chunks: {len(chunks)} (tamanho: {chunk_size})")
-        print(f"   🎯 Template Type: {template_type}")
-        print(f"   🎨 Word Template: {use_word_template}")
-        if template_type == 'html':
-            print(f"   🌐 HTML Template: {len(template_html)} caracteres")
-        elif template_type == 'text':
-            print(f"   📝 Text Template: {len(template_text)} caracteres")
         
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
             # Submeter tarefas por chunk
@@ -374,7 +362,7 @@ def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template,
                 print(f"   📦 Submetendo chunk {i} com {len(chunk)} registros")
                 future = executor.submit(
                     process_chunk_optimized,
-                    chunk, template_name, use_word_template, job_id, i, template_type, template_html, template_text
+                    chunk, template_name, use_word_template, job_id, i
                 )
                 future_to_chunk[future] = chunk
             
@@ -443,7 +431,7 @@ def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template,
         progress_tracker[job_id]['status'] = 'error'
         progress_tracker[job_id]['message'] = f'Erro: {str(e)}'
 
-def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chunk_id, template_type='word', template_html='', template_text=''):
+def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chunk_id):
     """Processa um chunk de dados com otimizações de velocidade"""
     pdf_files = []
     
@@ -457,15 +445,12 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
             print(f"   📄 Gerando PDF {i+1}/{len(chunk)} para: {nome}")
             
             # Gerar PDF individual com otimizações
-            if template_type == 'html' and template_html:
-                print(f"      🎨 Usando template HTML")
-                pdf_buffer = generate_html_pdf_with_formatting(row_data, template_html)
-            elif use_word_template and template_name:
+            if use_word_template and template_name:
                 print(f"      🎨 Usando template Word: {template_name}")
                 pdf_buffer = generate_word_pdf_ultra_optimized(row_data, template_name)
             else:
-                print(f"      📝 Usando template de texto")
-                template_text = template_text or DEFAULT_TEMPLATE
+                print(f"      📝 Usando template padrão")
+                template_text = DEFAULT_TEMPLATE
                 pdf_buffer = generate_simple_pdf_optimized(row_data, template_text)
             
             # Salvar PDF temporário com nome único
@@ -1044,12 +1029,7 @@ def convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path):
     # Fallback se Windows não estiver disponível
     if not WINDOWS_AVAILABLE:
         print(f"   ⚠️ Windows não disponível, usando fallback")
-        success = convert_word_to_pdf_fallback(docx_path, pdf_path)
-        if success and os.path.exists(pdf_path):
-            with open(pdf_path, 'rb') as f:
-                return f.read()
-        else:
-            raise Exception("Falha na conversão usando fallback")
+        return convert_word_to_pdf_fallback(docx_path, pdf_path)
     
     word = None
     doc = None
@@ -1137,14 +1117,14 @@ def convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path):
             pass
 
 def convert_word_to_pdf_fallback(docx_path, pdf_path):
-    """Fallback melhorado para conversão Word para PDF quando Windows não está disponível"""
+    """Fallback para conversão Word para PDF quando Windows não está disponível"""
     try:
-        print(f"   📄 Usando fallback melhorado para conversão")
+        print(f"   📄 Usando fallback para conversão")
         
         # Ler o documento Word
         doc = Document(docx_path)
         
-        # Gerar PDF com formatação preservada
+        # Gerar PDF com formatação melhorada
         pdf_buffer = io.BytesIO()
         doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
                                    topMargin=0.5*inch, bottomMargin=0.5*inch,
@@ -1208,100 +1188,86 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                 for run in paragraph.runs:
                     text = run.text
                     is_bold = run.bold
-                    is_italic = run.italic
                     is_underline = run.underline
-                    
-                    # Detectar cor da fonte
-                    font_color = None
-                    if hasattr(run.font, 'color') and run.font.color.rgb:
-                        font_color = run.font.color.rgb
+                    is_italic = run.italic
                     
                     # Aplicar formatação baseada no conteúdo e estilo
-                    formatted_text = text
-                    
-                    # Aplicar negrito
-                    if is_bold:
-                        formatted_text = f'<b>{formatted_text}</b>'
-                    
-                    # Aplicar itálico
-                    if is_italic:
-                        formatted_text = f'<i>{formatted_text}</i>'
-                    
-                    # Aplicar sublinhado
-                    if is_underline:
-                        formatted_text = f'<u>{formatted_text}</u>'
-                    
-                    # Aplicar cor da fonte
-                    if font_color:
-                        # Converter cor RGB para hex
-                        color_hex = f'#{font_color:06x}'
-                        formatted_text = f'<font color="{color_hex}">{formatted_text}</font>'
-                    
-                    paragraph_content.append(formatted_text)
+                    if 'digi' in text.lower() and len(text.strip()) <= 10:
+                        # Logo DIGI
+                        paragraph_content.append(f'<font color="#0915FF" size="16"><b>{text}</b></font>')
+                    elif is_bold and any(keyword in text.lower() for keyword in ['número', 'iccid', 'numéro', 'número']):
+                        # Dados importantes em negrito
+                        paragraph_content.append(f'<b>{text}</b>')
+                    elif is_bold:
+                        # Texto em negrito
+                        paragraph_content.append(f'<b>{text}</b>')
+                    elif is_italic:
+                        # Texto em itálico
+                        paragraph_content.append(f'<i>{text}</i>')
+                    elif is_underline:
+                        # Texto sublinhado
+                        paragraph_content.append(f'<u>{text}</u>')
+                    else:
+                        # Texto normal
+                        paragraph_content.append(text)
                 
                 # Juntar conteúdo do parágrafo
                 full_text = ''.join(paragraph_content)
                 
-                # Determinar estilo baseado no conteúdo e formatação
-                if paragraph.style.name.startswith('Heading'):
-                    # Títulos
-                    if 'digi' in full_text.lower() or len(full_text.strip()) <= 15:
-                        story.append(Paragraph(full_text, title_style))
-                    else:
-                        story.append(Paragraph(full_text, subtitle_style))
-                elif any(keyword in full_text.lower() for keyword in ['número', 'iccid', 'prezado', 'atenciosamente']):
-                    # Texto importante
+                # Determinar estilo baseado no conteúdo
+                if 'digi' in full_text.lower() and len(full_text.strip()) <= 10:
+                    # Logo centralizado
+                    story.append(Paragraph(full_text, title_style))
+                    story.append(Spacer(1, 15))
+                elif any(keyword in full_text.lower() for keyword in ['número', 'iccid', 'numéro', 'número']):
+                    # Dados importantes
                     story.append(Paragraph(full_text, data_style))
+                    story.append(Spacer(1, 8))
+                elif len(full_text.strip()) < 50 and any(keyword in full_text.lower() for keyword in ['prezado', 'atenciosamente', 'equipe']):
+                    # Cabeçalhos e rodapés
+                    story.append(Paragraph(full_text, subtitle_style))
+                    story.append(Spacer(1, 10))
                 else:
                     # Texto normal
                     story.append(Paragraph(full_text, normal_style))
-                
-                # Adicionar espaço entre parágrafos
-                story.append(Spacer(1, 6))
+                    story.append(Spacer(1, 6))
         
         # Processar tabelas se existirem
         for table in doc.tables:
-            # Criar dados da tabela
-            table_data = []
-            for row in table.rows:
-                row_data = []
-                for cell in row.cells:
-                    # Processar conteúdo da célula
-                    cell_text = ''
-                    for paragraph in cell.paragraphs:
-                        for run in paragraph.runs:
-                            text = run.text
-                            if run.bold:
-                                text = f'<b>{text}</b>'
-                            if run.underline:
-                                text = f'<u>{text}</u>'
-                            cell_text += text
-                    row_data.append(cell_text)
-                table_data.append(row_data)
-            
-            if table_data:
+            if table.rows:
                 # Criar tabela no PDF
-                pdf_table = Table(table_data)
+                table_data = []
+                for row in table.rows:
+                    row_data = []
+                    for cell in row.cells:
+                        cell_text = cell.text.strip()
+                        if cell_text:
+                            row_data.append(cell_text)
+                        else:
+                            row_data.append('')
+                    if row_data:  # Só adicionar se a linha não estiver vazia
+                        table_data.append(row_data)
                 
-                # Estilo da tabela
-                table_style = TableStyle([
-                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                    ('TOPPADDING', (0, 0), (-1, -1), 6),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ])
-                
-                # Se a primeira linha tem texto em negrito, tratar como cabeçalho
-                if table_data and any('<b>' in cell for cell in table_data[0]):
-                    table_style.add('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0915FF'))
-                    table_style.add('TEXTCOLOR', (0, 0), (-1, 0), colors.white)
-                    table_style.add('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold')
-                
-                pdf_table.setStyle(table_style)
-                story.append(pdf_table)
-                story.append(Spacer(1, 12))
+                if table_data:
+                    # Criar tabela no PDF
+                    pdf_table = Table(table_data)
+                    pdf_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0915FF')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 12),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+                        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 1), (-1, -1), 10),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ]))
+                    story.append(pdf_table)
+                    story.append(Spacer(1, 15))
         
         # Construir PDF
         doc_pdf.build(story)
@@ -1311,7 +1277,7 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
         with open(pdf_path, 'wb') as f:
             f.write(pdf_buffer.getvalue())
         
-        print(f"   ✅ PDF gerado com sucesso usando fallback melhorado")
+        print(f"   ✅ PDF gerado com sucesso: {pdf_path}")
         return True
         
     except Exception as e:
@@ -1390,258 +1356,6 @@ def generate_simple_pdf_optimized(row_data, template_text):
     doc.build(story)
     pdf_buffer.seek(0)
     return pdf_buffer
-
-def generate_html_pdf_with_formatting(row_data, template_html):
-    """Gera PDF usando HTML + CSS para preservar formatação perfeitamente"""
-    try:
-        print(f"   🎨 Gerando PDF com HTML + CSS")
-        
-        # Substituir placeholders no HTML
-        html_content = template_html
-        for key, value in row_data.items():
-            placeholder = f'[{key.upper()}]'
-            html_content = html_content.replace(placeholder, str(value))
-        
-        # CSS para formatação profissional
-        css_styles = """
-        <style>
-            body {
-                font-family: 'Arial', sans-serif;
-                margin: 0;
-                padding: 20px;
-                background: white;
-                color: #333;
-            }
-            .header {
-                text-align: center;
-                margin-bottom: 30px;
-                border-bottom: 2px solid #0915FF;
-                padding-bottom: 15px;
-            }
-            .logo {
-                color: #0915FF;
-                font-size: 24px;
-                font-weight: bold;
-                margin-bottom: 10px;
-            }
-            .content {
-                line-height: 1.6;
-                margin: 20px 0;
-            }
-            .important {
-                font-weight: bold;
-                color: #0915FF;
-            }
-            .data-row {
-                margin: 10px 0;
-                padding: 8px;
-                background: #f8f9fa;
-                border-left: 4px solid #0915FF;
-            }
-            .footer {
-                margin-top: 30px;
-                text-align: center;
-                font-style: italic;
-                color: #666;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 15px 0;
-            }
-            th {
-                background: #0915FF;
-                color: white;
-                padding: 10px;
-                text-align: left;
-                font-weight: bold;
-            }
-            td {
-                padding: 8px;
-                border: 1px solid #ddd;
-            }
-            tr:nth-child(even) {
-                background: #f8f9fa;
-            }
-        </style>
-        """
-        
-        # HTML completo
-        full_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            {css_styles}
-        </head>
-        <body>
-            {html_content}
-        </body>
-        </html>
-        """
-        
-        # Gerar PDF usando weasyprint ou pdfkit
-        try:
-            # Tentar usar weasyprint primeiro
-            from weasyprint import HTML, CSS
-            pdf_buffer = io.BytesIO()
-            HTML(string=full_html).write_pdf(pdf_buffer)
-            pdf_buffer.seek(0)
-            return pdf_buffer.getvalue()
-        except ImportError:
-            # Fallback para pdfkit
-            import pdfkit
-            options = {
-                'page-size': 'A4',
-                'margin-top': '0.5in',
-                'margin-right': '0.5in',
-                'margin-bottom': '0.5in',
-                'margin-left': '0.5in',
-                'encoding': "UTF-8",
-            }
-            pdf_content = pdfkit.from_string(full_html, False, options=options)
-            return pdf_content
-            
-    except Exception as e:
-        print(f"   ❌ Erro na geração HTML: {str(e)}")
-        raise e
-
-def convert_word_to_html(docx_path):
-    """Converte template Word para HTML preservando formatação"""
-    try:
-        print(f"   🔄 Convertendo Word para HTML...")
-        
-        # Ler o documento Word
-        doc = Document(docx_path)
-        
-        # HTML base
-        html_parts = []
-        html_parts.append('<!DOCTYPE html>')
-        html_parts.append('<html>')
-        html_parts.append('<head>')
-        html_parts.append('    <meta charset="UTF-8">')
-        html_parts.append('    <title>Carta Personalizada</title>')
-        html_parts.append('</head>')
-        html_parts.append('<body>')
-        
-        # Processar parágrafos
-        for paragraph in doc.paragraphs:
-            if paragraph.text.strip():
-                # Processar cada run para preservar formatação
-                paragraph_html = []
-                
-                for run in paragraph.runs:
-                    text = run.text
-                    html_text = text
-                    
-                    # Aplicar formatação
-                    if run.bold:
-                        html_text = f'<strong>{html_text}</strong>'
-                    if run.italic:
-                        html_text = f'<em>{html_text}</em>'
-                    if run.underline:
-                        html_text = f'<u>{html_text}</u>'
-                    
-                    # Aplicar cor da fonte
-                    if hasattr(run.font, 'color') and run.font.color.rgb:
-                        color_hex = f'#{run.font.color.rgb:06x}'
-                        html_text = f'<span style="color: {color_hex}">{html_text}</span>'
-                    
-                    paragraph_html.append(html_text)
-                
-                # Juntar conteúdo do parágrafo
-                full_html = ''.join(paragraph_html)
-                
-                # Determinar tag baseada no estilo
-                if paragraph.style.name.startswith('Heading'):
-                    if 'Heading 1' in paragraph.style.name:
-                        html_parts.append(f'    <h1>{full_html}</h1>')
-                    elif 'Heading 2' in paragraph.style.name:
-                        html_parts.append(f'    <h2>{full_html}</h2>')
-                    else:
-                        html_parts.append(f'    <h3>{full_html}</h3>')
-                else:
-                    html_parts.append(f'    <p>{full_html}</p>')
-        
-        # Processar tabelas
-        for table in doc.tables:
-            html_parts.append('    <table>')
-            
-            for i, row in enumerate(table.rows):
-                html_parts.append('        <tr>')
-                
-                for cell in row.cells:
-                    # Processar conteúdo da célula
-                    cell_html = []
-                    for paragraph in cell.paragraphs:
-                        for run in paragraph.runs:
-                            text = run.text
-                            if run.bold:
-                                text = f'<strong>{text}</strong>'
-                            if run.underline:
-                                text = f'<u>{text}</u>'
-                            cell_html.append(text)
-                    
-                    cell_content = ''.join(cell_html)
-                    
-                    # Determinar se é cabeçalho (primeira linha)
-                    if i == 0:
-                        html_parts.append(f'            <th>{cell_content}</th>')
-                    else:
-                        html_parts.append(f'            <td>{cell_content}</td>')
-                
-                html_parts.append('        </tr>')
-            
-            html_parts.append('    </table>')
-        
-        html_parts.append('</body>')
-        html_parts.append('</html>')
-        
-        # Juntar HTML
-        html_content = '\n'.join(html_parts)
-        
-        print(f"   ✅ Conversão Word → HTML concluída")
-        return html_content
-        
-    except Exception as e:
-        print(f"   ❌ Erro na conversão Word → HTML: {str(e)}")
-        raise e
-
-@app.route('/api/convert-word-to-html', methods=['POST'])
-def convert_word_to_html_endpoint():
-    """Endpoint para converter template Word para HTML"""
-    try:
-        if 'template' not in request.files:
-            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
-        
-        file = request.files['template']
-        if file.filename == '':
-            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
-        
-        if not allowed_template_file(file.filename):
-            return jsonify({'error': 'Tipo de arquivo não permitido. Use .docx'}), 400
-        
-        # Salvar arquivo temporário
-        temp_path = os.path.join(app.config['TEMP_FOLDER'], f'temp_convert_{int(time.time())}.docx')
-        file.save(temp_path)
-        
-        try:
-            # Converter Word para HTML
-            html_content = convert_word_to_html(temp_path)
-            
-            return jsonify({
-                'success': True,
-                'html': html_content,
-                'message': 'Template Word convertido para HTML com sucesso!'
-            })
-            
-        finally:
-            # Limpar arquivo temporário
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-                
-    except Exception as e:
-        return jsonify({'error': f'Erro na conversão: {str(e)}'}), 500
 
 if __name__ == '__main__':
     # Configuração para produção (Render, Heroku, etc.)
