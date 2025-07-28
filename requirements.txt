@@ -5,5 +5,6 @@ reportlab>=3.6.0
 Werkzeug>=2.0.0
 python-docx>=0.8.11
 docx2pdf>=0.1.8
-comtypes>=1.2.0
-pywin32>=305 
+# Windows-specific dependencies (commented for Linux deployment)
+# comtypes>=1.2.0
+# pywin32>=305 

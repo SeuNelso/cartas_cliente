@@ -21,9 +21,16 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from functools import lru_cache
-import pythoncom
-import win32com.client
 import sys
+
+# Windows-specific imports (only if available)
+try:
+    import pythoncom
+    import win32com.client
+    WINDOWS_AVAILABLE = True
+except ImportError:
+    WINDOWS_AVAILABLE = False
+    print("⚠️ Windows dependencies not available - Word conversion will use fallback methods")
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'sua_chave_secreta_aqui'
@@ -1007,6 +1014,12 @@ def convert_word_to_pdf_robust(docx_path, pdf_path):
 
 def convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path):
     """Converte Word para PDF usando COM direto preservando formatação exata"""
+    
+    # Fallback se Windows não estiver disponível
+    if not WINDOWS_AVAILABLE:
+        print(f"   ⚠️ Windows não disponível, usando fallback")
+        return convert_word_to_pdf_fallback(docx_path, pdf_path)
+    
     word = None
     doc = None
     try:
@@ -1091,6 +1104,48 @@ def convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path):
             pythoncom.CoUninitialize()
         except:
             pass
+
+def convert_word_to_pdf_fallback(docx_path, pdf_path):
+    """Fallback para conversão Word para PDF quando Windows não está disponível"""
+    try:
+        print(f"   📄 Usando fallback para conversão")
+        
+        # Ler o documento Word
+        doc = Document(docx_path)
+        
+        # Extrair texto com formatação básica
+        text_content = []
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                text_content.append(paragraph.text)
+        
+        # Gerar PDF simples com ReportLab
+        pdf_buffer = io.BytesIO()
+        doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+        story = []
+        
+        styles = getSampleStyleSheet()
+        
+        for line in text_content:
+            if line.strip():
+                story.append(Paragraph(line, styles['Normal']))
+                story.append(Spacer(1, 12))
+        
+        doc_pdf.build(story)
+        pdf_buffer.seek(0)
+        
+        # Salvar PDF
+        with open(pdf_path, 'wb') as f:
+            f.write(pdf_buffer.getvalue())
+        
+        file_size = os.path.getsize(pdf_path)
+        print(f"   ✅ PDF fallback criado: {file_size} bytes")
+        
+        return pdf_buffer.getvalue()
+        
+    except Exception as e:
+        print(f"   ❌ Erro no fallback: {e}")
+        raise e
 
 def convert_word_to_pdf_com_robust(docx_path, pdf_path):
     """Converte Word para PDF usando COM direto com tratamento robusto (método antigo)"""
