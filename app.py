@@ -836,7 +836,7 @@ def generate_simple_pdf(row_data, template_text):
     return generate_simple_pdf_optimized(row_data, template_text)
 
 def generate_word_pdf_ultra_optimized(row_data, template_name):
-    """Gera PDF a partir de template Word usando abordagem robusta"""
+    """Gera PDF a partir de template Word SEM HTML, apenas Word. Se falhar, retorna erro claro."""
     try:
         print(f"      🎨 Iniciando geração Word PDF para template: {template_name}")
         print(f"      📊 Dados recebidos: {list(row_data.keys())}")
@@ -868,7 +868,6 @@ def generate_word_pdf_ultra_optimized(row_data, template_name):
         
         # Substituir placeholders de forma simples e robusta
         def replace_placeholders_simple():
-            # Mapeamento de placeholders
             placeholder_mapping = {
                 '[NUMERO]': 'NUMERO',
                 '[ICCID]': 'ICCID',
@@ -876,85 +875,57 @@ def generate_word_pdf_ultra_optimized(row_data, template_name):
                 '[EMAIL]': 'EMAIL',
                 '[TELEFONE]': 'TELEFONE'
             }
-            
-            # Substituir em parágrafos
             for paragraph in doc.paragraphs:
                 full_text = paragraph.text
                 new_text = full_text
-                
-                # Substituir placeholders mapeados
                 for placeholder, data_key in placeholder_mapping.items():
                     if placeholder in new_text and data_key in row_data:
                         new_text = new_text.replace(placeholder, str(row_data[data_key]) if row_data[data_key] is not None else '')
                         print(f"      🔄 Substituído: {placeholder} → {row_data[data_key]}")
-                
-                # Substituir placeholders gerais
                 for key, value in row_data.items():
                     placeholder = f'[{key.upper()}]'
                     if placeholder in new_text:
                         new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                
-                # Aplicar substituição se houve mudança
                 if new_text != full_text:
                     paragraph.text = new_text
                     print(f"      ✅ Parágrafo atualizado")
-            
-            # Substituir em tabelas
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
                         for paragraph in cell.paragraphs:
                             full_text = paragraph.text
                             new_text = full_text
-                            
-                            # Substituir placeholders mapeados
                             for placeholder, data_key in placeholder_mapping.items():
                                 if placeholder in new_text and data_key in row_data:
                                     new_text = new_text.replace(placeholder, str(row_data[data_key]) if row_data[data_key] is not None else '')
-                            
-                            # Substituir placeholders gerais
                             for key, value in row_data.items():
                                 placeholder = f'[{key.upper()}]'
                                 if placeholder in new_text:
                                     new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                            
-                            # Aplicar substituição se houve mudança
                             if new_text != full_text:
                                 paragraph.text = new_text
-        
-        # Executar substituição
         replace_placeholders_simple()
-        
-        # Salvar documento modificado
         doc.save(temp_docx)
         print(f"      ✅ Documento salvo com placeholders substituídos")
-        
-        # Usar método robusto de conversão
         print(f"      🔄 Convertendo para PDF usando método robusto...")
         pdf_content = convert_word_to_pdf_fallback(temp_docx, temp_pdf)
-        
-        # Limpar arquivos temporários
         try:
             os.remove(temp_docx)
             if os.path.exists(temp_pdf):
                 os.remove(temp_pdf)
         except:
             pass
-        
         if pdf_content is not None:
             pdf_buffer = io.BytesIO(pdf_content)
             pdf_buffer.seek(0)
             print(f"      ✅ PDF gerado com sucesso: {len(pdf_content)} bytes")
             return pdf_buffer
         else:
-            print(f"      ❌ Falha na conversão, usando método alternativo")
-            # Fallback para método simples
-            return generate_simple_pdf_optimized(row_data, "Template padrão")
-        
+            print(f"      ❌ Falha na conversão Word para PDF. Verifique o template.")
+            raise Exception("Falha na conversão Word para PDF. Verifique o template.")
     except Exception as e:
         print(f"      ❌ Erro na geração Word PDF: {e}")
-        # Fallback para método simples
-        return generate_simple_pdf_optimized(row_data, "Template padrão")
+        raise Exception(f"Erro na geração Word PDF: {e}")
 
 def generate_word_pdf_alternative_method(row_data, template_path, temp_docx, temp_pdf):
     """Método alternativo para substituir placeholders quando o método principal falha"""
