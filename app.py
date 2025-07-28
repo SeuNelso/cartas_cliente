@@ -48,8 +48,8 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['TEMPLATES_FOLDER'] = 'templates_word'
 app.config['TEMP_FOLDER'] = 'temp'
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
-app.config['MAX_WORKERS'] = 16  # MÁXIMO ABSOLUTO de workers
-app.config['CHUNK_SIZE'] = 5    # Chunks mínimos para velocidade máxima
+app.config['MAX_WORKERS'] = 4   # Reduzido para Railway
+app.config['CHUNK_SIZE'] = 3    # Chunks menores para estabilidade
 app.config['TIMEOUT_SECONDS'] = 0  # SEM TIMEOUT - processa até terminar
 
 # Criar pastas necessárias
@@ -1123,35 +1123,24 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
         # Ler o documento Word
         doc = Document(docx_path)
         
-        # Gerar PDF com formatação completa preservada
+        # Gerar PDF simples e rápido
         pdf_buffer = io.BytesIO()
         doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
                                    topMargin=0.5*inch, bottomMargin=0.5*inch,
                                    leftMargin=0.5*inch, rightMargin=0.5*inch)
         story = []
         
-        # Estilos otimizados para preservar formatação completa
+        # Estilos básicos
         styles = getSampleStyleSheet()
         
-        # Estilo para logo/título principal (azul, grande, centralizado)
+        # Estilo para logo
         logo_style = ParagraphStyle(
             'Logo',
             parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30,
+            fontSize=20,
+            spaceAfter=20,
             alignment=1,  # Centralizado
             textColor=colors.HexColor('#0915FF'),
-            fontName='Helvetica-Bold'
-        )
-        
-        # Estilo para subtítulos
-        subtitle_style = ParagraphStyle(
-            'Subtitle',
-            parent=styles['Heading2'],
-            fontSize=14,
-            spaceAfter=15,
-            alignment=0,  # Esquerda
-            textColor=colors.black,
             fontName='Helvetica-Bold'
         )
         
@@ -1162,111 +1151,29 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
             fontSize=11,
             spaceAfter=8,
             leading=14,
-            alignment=0,  # Justificado
-            textColor=colors.black
-        )
-        
-        # Estilo para assinatura/contato
-        contact_style = ParagraphStyle(
-            'Contact',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=8,
-            leading=14,
             alignment=0,  # Esquerda
             textColor=colors.black
         )
         
-        # Estilo para dados da tabela
-        data_style = ParagraphStyle(
-            'Data',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=5,
-            leading=12,
-            alignment=0,  # Esquerda
-            textColor=colors.black,
-            fontName='Helvetica'
-        )
-        
-        # Processar seções do documento
-        current_section = 'body'
-        
-        # Detectar e processar Header/Footer se existirem
-        header_content = []
-        footer_content = []
-        body_content = []
-        
-        # Separar conteúdo por seções
+        # Processar parágrafos de forma simplificada
         for paragraph in doc.paragraphs:
             if paragraph.text.strip():
-                paragraph_style = paragraph.style.name.lower()
-                paragraph_text = paragraph.text.strip()
+                text = paragraph.text.strip()
                 
-                # Detectar se é Header, Footer ou Body baseado no estilo e posição
-                if 'header' in paragraph_style or paragraph_style.startswith('header'):
-                    header_content.append((paragraph_text, paragraph_style))
-                elif 'footer' in paragraph_style or paragraph_style.startswith('footer'):
-                    footer_content.append((paragraph_text, paragraph_style))
-                else:
-                    body_content.append((paragraph_text, paragraph_style))
-        
-        # Processar Header primeiro
-        if header_content:
-            for text, style in header_content:
-                if 'logo' in style or 'digi' in text.lower():
+                # Detectar logo DIGI
+                if 'digi' in text.lower() and len(text) <= 10:
                     story.append(Paragraph(text, logo_style))
-                    story.append(Spacer(1, 20))
-                else:
-                    story.append(Paragraph(text, subtitle_style))
                     story.append(Spacer(1, 15))
-        
-        # Processar Body content
-        for text, style in body_content:
-            # Detectar seção baseada no conteúdo e estilo
-            if any(keyword in text.lower() for keyword in ['digi', 'bem-vindo']):
-                if 'digi' in text.lower():
-                    # Logo principal
-                    story.append(Paragraph(text, logo_style))
-                    story.append(Spacer(1, 20))
                 else:
-                    # Subtítulo de boas-vindas
-                    story.append(Paragraph(text, subtitle_style))
-                    story.append(Spacer(1, 15))
-            
-            # Detectar seção de dados (número e ICCID)
-            elif any(keyword in text.lower() for keyword in ['número', 'iccid', 'código']):
-                if 'número' in text.lower() or 'iccid' in text.lower():
-                    # Cabeçalho da tabela de dados
-                    story.append(Paragraph(text, subtitle_style))
-                    story.append(Spacer(1, 10))
-                else:
-                    # Dados específicos
-                    story.append(Paragraph(text, data_style))
-                    story.append(Spacer(1, 5))
-            
-            # Detectar seção de contato
-            elif any(keyword in text.lower() for keyword in ['contatar', 'contactar', 'dúvida', 'ajudar']):
-                story.append(Paragraph(text, contact_style))
-                story.append(Spacer(1, 8))
-            
-            # Texto normal do corpo
-            else:
-                story.append(Paragraph(text, normal_style))
-                story.append(Spacer(1, 8))
-        
-        # Processar Footer por último
-        if footer_content:
-            story.append(Spacer(1, 30))  # Espaço antes do footer
-            for text, style in footer_content:
-                if 'contact' in style or any(keyword in text.lower() for keyword in ['contatar', 'contactar', 'dúvida']):
-                    story.append(Paragraph(text, contact_style))
-                    story.append(Spacer(1, 8))
-                else:
-                    story.append(Paragraph(text, normal_style))
+                    # Texto normal com formatação básica
+                    formatted_text = text
+                    if any(keyword in text.lower() for keyword in ['bem-vindo', 'número', 'iccid', 'dúvida']):
+                        formatted_text = f'<b>{text}</b>'
+                    
+                    story.append(Paragraph(formatted_text, normal_style))
                     story.append(Spacer(1, 8))
         
-        # Processar tabelas com formatação específica
+        # Processar tabelas de forma simplificada
         for table in doc.tables:
             table_data = []
             for row in table.rows:
@@ -1276,26 +1183,17 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                 table_data.append(row_data)
             
             if table_data:
-                # Criar tabela no PDF com estilo específico
+                # Tabela simples
                 pdf_table = Table(table_data)
                 pdf_table.setStyle(TableStyle([
-                    # Cabeçalho da tabela
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0915FF')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                    ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 12),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-                    # Corpo da tabela
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                    ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                    ('FONTSIZE', (0, 1), (-1, -1), 11),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#0915FF')),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F0F8FF')])
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 11),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.white)
                 ]))
                 story.append(pdf_table)
-                story.append(Spacer(1, 20))
+                story.append(Spacer(1, 15))
         
         doc_pdf.build(story)
         pdf_buffer.seek(0)
