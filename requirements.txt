@@ -1,8 +1,9 @@
-Flask>=2.0.0
-pandas>=1.5.0
-openpyxl>=3.0.0
-reportlab>=3.6.0
-Werkzeug>=2.0.0
-python-docx>=0.8.11
+Flask==2.3.3
+pandas==2.1.1
+openpyxl==3.1.2
+reportlab==4.0.4
+Werkzeug==2.3.7
+python-docx==0.8.11
 # Dependências essenciais para conversão robusta
-docx2pdf>=0.1.8
+docx2pdf==0.1.8
+pywin32==306; sys_platform == "win32"
