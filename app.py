@@ -236,12 +236,22 @@ def generate_pdf():
         # Se apenas uma linha, gerar PDF único
         if len(excel_data) == 1:
             print(f"   📄 Gerando PDF único")
+            
+            # Verificar se há template Word disponível
             if use_word_template and template_name:
-                print(f"   🎨 Usando template Word: {template_name}")
-                pdf_buffer = generate_word_pdf_ultra_optimized(excel_data[0], template_name)
+                template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
+                if os.path.exists(template_path):
+                    print(f"   🎨 Usando template Word: {template_name}")
+                    pdf_buffer = generate_word_pdf_ultra_optimized(excel_data[0], template_name)
+                else:
+                    print(f"   ⚠️ Template Word não encontrado, usando template padrão")
+                    pdf_buffer = generate_digi_template_pdf(excel_data[0])
             else:
-                print(f"   ❌ Template Word obrigatório")
-                return jsonify({'error': 'É obrigatório selecionar um template Word (.docx)'}), 400
+                print(f"   📄 Usando template padrão DIGI")
+                pdf_buffer = generate_digi_template_pdf(excel_data[0])
+            
+            if pdf_buffer is None:
+                return jsonify({'error': 'Erro ao gerar PDF'}), 500
             
             # Nome do arquivo baseado no número
             numero = excel_data[0].get('NUMERO', '001')
@@ -262,11 +272,14 @@ def generate_pdf():
         job_id = str(uuid.uuid4())
         start_time = time.time()
         
+        # Determinar template a usar
+        template_to_use = template_name if template_name else "Template padrão DIGI"
+        
         progress_tracker[job_id] = {
             'total': len(excel_data),
             'current': 0,
             'status': 'processing',
-            'message': f'Iniciando geração otimizada de PDFs usando template "{template_name if template_name else "padrão"}"...',
+            'message': f'Iniciando geração otimizada de PDFs usando template "{template_to_use}"...',
             'start_time': start_time,
             'estimated_time_remaining': None,
             'elapsed_time': 0
@@ -475,25 +488,35 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
             nome = row_data.get('NOME', f'registro_{i+1}')
             print(f"   📄 Gerando PDF {i+1}/{len(chunk)} para: {nome}")
             
-            # Gerar PDF individual com template Word obrigatório
+            # Verificar se há template Word disponível
             if use_word_template and template_name:
-                print(f"      🎨 Usando template Word: {template_name}")
-                pdf_buffer = generate_word_pdf_ultra_optimized(row_data, template_name)
+                template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
+                if os.path.exists(template_path):
+                    print(f"      🎨 Usando template Word: {template_name}")
+                    pdf_buffer = generate_word_pdf_ultra_optimized(row_data, template_name)
+                else:
+                    print(f"      ⚠️ Template Word não encontrado, usando template padrão")
+                    pdf_buffer = generate_digi_template_pdf(row_data)
             else:
-                print(f"      ❌ Template Word obrigatório")
-                raise Exception("É obrigatório selecionar um template Word (.docx)")
+                print(f"      📄 Usando template padrão DIGI")
+                pdf_buffer = generate_digi_template_pdf(row_data)
+            
+            # Verificar se o buffer foi gerado corretamente
+            if pdf_buffer is None:
+                print(f"      ❌ PDF buffer é None para {nome}")
+                continue
+                
+            # Verificar se o buffer tem conteúdo
+            pdf_content = pdf_buffer.getvalue()
+            if not pdf_content:
+                print(f"      ❌ PDF buffer vazio para {nome}")
+                continue
             
             # Salvar PDF temporário com nome único
             temp_pdf_path = os.path.join(
                 app.config['TEMP_FOLDER'], 
                 f'temp_{job_id}_chunk_{chunk_id}_item_{i}_{int(time.time() * 1000)}.pdf'
             )
-            
-            # Verificar se o buffer tem conteúdo
-            pdf_content = pdf_buffer.getvalue()
-            if not pdf_content:
-                print(f"      ❌ PDF buffer vazio para {nome}")
-                continue
             
             with open(temp_pdf_path, 'wb') as f:
                 f.write(pdf_content)
@@ -522,6 +545,190 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
     
     print(f"   ✅ Chunk {chunk_id} concluído: {len(pdf_files)} PDFs gerados")
     return pdf_files
+
+def generate_digi_template_pdf(row_data):
+    """Gera PDF usando template DIGI padrão embutido"""
+    try:
+        print(f"      🎨 Gerando PDF com template DIGI padrão")
+        
+        # Extrair dados
+        numero = row_data.get('NUMERO', '[NUMERO]')
+        iccid = row_data.get('ICCID', '[ICCID]')
+        nome = row_data.get('NOME', '[NOME]')
+        
+        # Gerar PDF com formatação exata da DIGI
+        pdf_buffer = io.BytesIO()
+        doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
+                                   topMargin=0.7*inch, bottomMargin=0.7*inch,
+                                   leftMargin=0.7*inch, rightMargin=0.7*inch)
+        story = []
+        
+        # Estilos otimizados para DIGI
+        styles = getSampleStyleSheet()
+        
+        # Estilo para logo DIGI (azul, centralizado, grande)
+        digi_logo_style = ParagraphStyle(
+            'DigiLogo',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=1,  # Centralizado
+            textColor=colors.HexColor('#0915FF'),
+            fontName='Helvetica-Bold'
+        )
+        
+        # Estilo para saudação
+        greeting_style = ParagraphStyle(
+            'Greeting',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=8,
+            leading=16,
+            alignment=0,  # Esquerda
+            textColor=colors.black
+        )
+        
+        # Estilo para título de boas-vindas
+        welcome_style = ParagraphStyle(
+            'Welcome',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceAfter=12,
+            leading=18,
+            alignment=0,  # Esquerda
+            textColor=colors.black,
+            fontName='Helvetica-Bold'
+        )
+        
+        # Estilo para texto normal
+        normal_style = ParagraphStyle(
+            'Normal',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=8,
+            leading=14,
+            alignment=0,  # Esquerda
+            textColor=colors.black
+        )
+        
+        # Estilo para dados importantes (número, ICCID)
+        data_style = ParagraphStyle(
+            'Data',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=6,
+            leading=14,
+            alignment=0,  # Esquerda
+            textColor=colors.black,
+            fontName='Helvetica-Bold'
+        )
+        
+        # Estilo para contato
+        contact_style = ParagraphStyle(
+            'Contact',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=10,
+            leading=14,
+            alignment=0,  # Esquerda
+            textColor=colors.black
+        )
+        
+        # Estilo para fechamento
+        closing_style = ParagraphStyle(
+            'Closing',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=15,
+            leading=14,
+            alignment=0,  # Esquerda
+            textColor=colors.black
+        )
+        
+        # Estilo para rodapé legal
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=9,
+            spaceAfter=6,
+            leading=12,
+            alignment=0,  # Esquerda
+            textColor=colors.grey
+        )
+        
+        # Conteúdo do template DIGI
+        story.append(Paragraph("DIGI", digi_logo_style))
+        story.append(Spacer(1, 20))
+        
+        story.append(Paragraph("Olá,", greeting_style))
+        story.append(Spacer(1, 8))
+        
+        story.append(Paragraph("Bem-vindo/a à DIGI!", welcome_style))
+        story.append(Spacer(1, 12))
+        
+        story.append(Paragraph("Estamos muito entusiasmados por ter-te connosco.", normal_style))
+        story.append(Spacer(1, 8))
+        
+        story.append(Paragraph("Agora, já podes desfrutar das vantagens de ser DIGI, como ter sempre o nosso melhor preço ou receber uma fatura sem surpresas.", normal_style))
+        story.append(Spacer(1, 8))
+        
+        story.append(Paragraph("Aqui, encontras o teu número de telemóvel e o código ICCID associado ao teu novo cartão SIM, para que possas identificá-lo facilmente caso tenhas contratado mais do que um número.", normal_style))
+        story.append(Spacer(1, 8))
+        
+        # Tabela com dados
+        table_data = [
+            ['Número', 'Código ICCID cartão'],
+            [numero, iccid]
+        ]
+        
+        pdf_table = Table(table_data)
+        table_style = TableStyle([
+            # Cabeçalho - negrito e sublinhado
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 8),
+            # Linha separadora do cabeçalho
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
+            # Corpo da tabela
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 11),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+            # Sem bordas internas
+            ('BACKGROUND', (0, 0), (-1, -1), colors.white)
+        ])
+        
+        pdf_table.setStyle(table_style)
+        story.append(pdf_table)
+        story.append(Spacer(1, 15))
+        
+        story.append(Paragraph("Em caso de dúvida, não hesites em contactar-nos através do 923 30 90 30 (gratuito na rede DIGI e com custo de uma chamada normal para outros operadores). Estamos aqui para te ajudar.", contact_style))
+        story.append(Spacer(1, 10))
+        
+        story.append(Paragraph("Até breve,", closing_style))
+        story.append(Spacer(1, 15))
+        
+        story.append(Paragraph("A Equipa DIGI.", closing_style))
+        story.append(Spacer(1, 15))
+        
+        story.append(Paragraph("DIGI PORTUGAL, LDA. Matriculada na CRC sobo nº 516222201 - Capital Social 150.000.000,00€ Avenida José Malhoa nº11,3º Andar - 1070-157 Lisboa", footer_style))
+        story.append(Spacer(1, 6))
+        
+        # Construir PDF
+        doc_pdf.build(story)
+        pdf_buffer.seek(0)
+        
+        print(f"      ✅ PDF gerado com sucesso: {len(pdf_buffer.getvalue())} bytes")
+        return pdf_buffer
+        
+    except Exception as e:
+        print(f"      ❌ Erro ao gerar template DIGI: {e}")
+        return None
 
 def create_final_zip(pdf_files, zip_path):
     """Cria o ZIP final com todos os PDFs"""
