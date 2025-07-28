@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Carta Pessoal</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .titulo {
+            text-align: center;
+            color: #ff0000;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        
+        .separador {
+            text-align: center;
+            color: #666;
+            margin: 20px 0;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 10px;
+        }
+        
+        .info {
+            margin: 10px 0;
+        }
+        
+        .label {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .valor-nome {
+            color: #0000ff;
+            font-weight: bold;
+        }
+        
+        .valor-cidade {
+            color: #008000;
+            font-weight: bold;
+        }
+        
+        .valor-idade {
+            color: #800080;
+            font-weight: bold;
+        }
+        
+        .valor-profissao {
+            color: #ff6600;
+            font-weight: bold;
+        }
+        
+        .valor-salario {
+            color: #0066cc;
+            font-weight: bold;
+        }
+        
+        .saudacao {
+            color: #ff0000;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        .texto-italico {
+            font-style: italic;
+            color: #333;
+        }
+        
+        .texto-vermelho {
+            color: #ff0000;
+        }
+        
+        .texto-azul {
+            color: #0000ff;
+        }
+        
+        .lista {
+            margin: 20px 0;
+        }
+        
+        .lista-item {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        
+        .lista-item.laranja {
+            color: #ff6600;
+        }
+        
+        .lista-item.roxo {
+            color: #800080;
+        }
+        
+        .lista-item.teal {
+            color: #008080;
+        }
+        
+        .tabela {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .tabela th {
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .tabela td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .tabela td.azul {
+            color: #0000ff;
+            font-weight: bold;
+        }
+        
+        .assinatura {
+            text-align: right;
+            margin-top: 40px;
+        }
+        
+        .assinatura-italico {
+            font-style: italic;
+            color: #333;
+        }
+        
+        .assinatura-nome {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .assinatura-extra {
+            color: #ff00ff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="titulo">CARTA COM FORMATAÇÃO RICA - HTML</div>
+    
+    <div class="separador">============================================================</div>
+    
+    <div class="info">
+        <span class="label">Nome:</span> 
+        <span class="valor-nome">[NOME]</span> 
+        <span style="color: #888;">(Destinatário)</span>
+    </div>
+    
+    <div class="info">
+        <span class="label">Cidade:</span> 
+        <span class="valor-cidade">[CIDADE]</span>
+    </div>
+    
+    <div class="info">
+        <span class="label">Idade:</span> 
+        <span class="valor-idade">[IDADE]</span> 
+        <span style="font-style: italic;">anos</span>
+    </div>
+    
+    <div class="info">
+        <span class="label">Profissão:</span> 
+        <span class="valor-profissao">[PROFISSAO]</span>
+    </div>
+    
+    <div class="info">
+        <span class="label">Salário:</span> 
+        <span class="valor-salario">[SALARIO]</span>
+    </div>
+    
+    <br>
+    
+    <div class="saudacao">Prezado Senhor / Senhora,</div>
+    
+    <p style="text-align: justify;">
+        <span class="texto-italico">Espero que esta carta o encontre bem. </span>
+        <span class="texto-italico">Eu queria escrever para você sobre </span>
+        <span class="texto-vermelho">[DEPARTAMENTO]</span>
+        <span class="texto-italico">. </span>
+        <span class="texto-italico">Eu sinto que é importante compartilhar meus pensamentos e sentimentos com você.</span>
+    </p>
+    
+    <p style="text-align: justify;">
+        <span class="texto-azul">[Descreva seus pensamentos e sentimentos em detalhes]. </span>
+        <span class="texto-italico">Eu espero que você possa entender onde estou vindo e que possamos trabalhar juntos para encontrar uma solução.</span>
+    </p>
+    
+    <h3>Pontos importantes:</h3>
+    <div class="lista">
+        <div class="lista-item laranja">• Formatação deve ser preservada</div>
+        <div class="lista-item roxo">• Cores devem ser mantidas</div>
+        <div class="lista-item teal">• Alinhamentos devem ser conservados</div>
+    </div>
+    
+    <h3>Resumo:</h3>
+    <table class="tabela">
+        <thead>
+            <tr>
+                <th>Campo</th>
+                <th>Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Nome</td>
+                <td class="azul">[NOME]</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="assinatura">
+        <div class="assinatura-italico">Obrigado pela sua atenção e consideração.</div>
+        <br><br>
+        <div class="assinatura-italico">Atenciosamente,</div>
+        <div class="assinatura-nome">[NOME]</div>
+        <div class="assinatura-extra">Formatação Rica Test - HTML</div>
+    </div>
+</body>
+</html>
