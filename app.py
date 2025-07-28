@@ -42,51 +42,29 @@ except ImportError:
     DOCX_AVAILABLE = False
     print("⚠️ python-docx not available - using basic text conversion")
 
+# Configurações globais
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'sua_chave_secreta_aqui'
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['UPLOADS_FOLDER'] = 'uploads'
 app.config['TEMPLATES_FOLDER'] = 'templates_word'
 app.config['TEMP_FOLDER'] = 'temp'
-# Configurações da aplicação
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
-app.config['TIMEOUT_SECONDS'] = 0  # Sem timeout
-app.config['MAX_WORKERS'] = 8  # Mais workers para Render
-app.config['CHUNK_SIZE'] = 5   # Chunks maiores para Render
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
 
 # Criar pastas necessárias
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['UPLOADS_FOLDER'], exist_ok=True)
 os.makedirs(app.config['TEMPLATES_FOLDER'], exist_ok=True)
 os.makedirs(app.config['TEMP_FOLDER'], exist_ok=True)
 
-# Dicionário para armazenar progresso
+# Variáveis globais para controle de jobs
+jobs = {}
 progress_tracker = {}
-
-# Cache para templates processados
-template_cache = {}
-
-# Dicionário para armazenar tempos de início dos jobs
 job_start_times = {}
-
-# Set para controlar jobs ativos
 current_jobs = set()
 
-# Função para limpar jobs antigos
-def cleanup_old_jobs():
-    """Remove jobs antigos (mais de 1 hora) para evitar vazamentos de memória"""
-    current_time = time.time()
-    jobs_to_remove = []
-    
-    for job_id, job_data in progress_tracker.items():
-        if current_time - job_data.get('start_time', 0) > 3600:  # 1 hora
-            jobs_to_remove.append(job_id)
-    
-    for job_id in jobs_to_remove:
-        if job_id in progress_tracker:
-            del progress_tracker[job_id]
-        if job_id in job_start_times:
-            del job_start_times[job_id]
-        current_jobs.discard(job_id)
-        print(f"Job antigo removido: {job_id}")
+# Configurações da aplicação
+app.config['SECRET_KEY'] = 'sua_chave_secreta_aqui'
+app.config['TIMEOUT_SECONDS'] = 0  # Sem timeout
+app.config['MAX_WORKERS'] = 8  # Mais workers para Render
+app.config['CHUNK_SIZE'] = 5   # Chunks maiores para Render
 
 ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 ALLOWED_TEMPLATE_EXTENSIONS = {'docx'}
@@ -207,7 +185,7 @@ def upload_file():
     
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        filepath = os.path.join(app.config['UPLOADS_FOLDER'], filename)
         file.save(filepath)
         
         try:
