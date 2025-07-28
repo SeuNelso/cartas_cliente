@@ -199,6 +199,9 @@ def generate_pdf():
         excel_data = data.get('data', [])
         template_name = data.get('template', '')
         use_word_template = data.get('useWordTemplate', False)
+        template_type = data.get('templateType', 'word')
+        template_html = data.get('templateHtml', '')
+        template_text = data.get('templateText', '')
         
         print(f"🔍 DEBUG: Recebido request de geração")
         print(f"   Template Name: '{template_name}'")
@@ -213,12 +216,15 @@ def generate_pdf():
         # Se apenas uma linha, gerar PDF único
         if len(excel_data) == 1:
             print(f"   📄 Gerando PDF único")
-            if use_word_template and template_name:
+            if template_type == 'html' and template_html:
+                print(f"   🎨 Usando template HTML")
+                pdf_buffer = generate_html_pdf_with_formatting(excel_data[0], template_html)
+            elif use_word_template and template_name:
                 print(f"   🎨 Usando template Word: {template_name}")
                 pdf_buffer = generate_word_pdf_ultra_optimized(excel_data[0], template_name)
             else:
-                print(f"   📝 Usando template padrão")
-                template_text = DEFAULT_TEMPLATE
+                print(f"   📝 Usando template de texto")
+                template_text = template_text or DEFAULT_TEMPLATE
                 pdf_buffer = generate_simple_pdf_optimized(excel_data[0], template_text)
             
             # Nome do arquivo baseado no número
@@ -256,7 +262,7 @@ def generate_pdf():
         # Iniciar geração em background com processamento paralelo
         thread = threading.Thread(
             target=generate_multiple_pdfs_parallel,
-            args=(excel_data, template_name, use_word_template, job_id)
+            args=(excel_data, template_name, use_word_template, job_id, template_type, template_html, template_text)
         )
         thread.daemon = True
         thread.start()
@@ -326,7 +332,7 @@ def download_result(job_id):
     except Exception as e:
         return jsonify({'error': f'Erro ao baixar arquivo: {str(e)}'}), 500
 
-def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template, job_id):
+def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template, job_id, template_type='word', template_html='', template_text=''):
     """Gera múltiplos PDFs usando processamento paralelo otimizado"""
     try:
         print(f"🚀 SUPER ULTRA: Gerando {len(data_list)} PDFs")
@@ -354,6 +360,12 @@ def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template,
         # Dividir dados em chunks SUPER ULTRA
         chunks = [data_list[i:i + chunk_size] for i in range(0, len(data_list), chunk_size)]
         print(f"   Chunks: {len(chunks)} (tamanho: {chunk_size})")
+        print(f"   🎯 Template Type: {template_type}")
+        print(f"   🎨 Word Template: {use_word_template}")
+        if template_type == 'html':
+            print(f"   🌐 HTML Template: {len(template_html)} caracteres")
+        elif template_type == 'text':
+            print(f"   📝 Text Template: {len(template_text)} caracteres")
         
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
             # Submeter tarefas por chunk
@@ -362,7 +374,7 @@ def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template,
                 print(f"   📦 Submetendo chunk {i} com {len(chunk)} registros")
                 future = executor.submit(
                     process_chunk_optimized,
-                    chunk, template_name, use_word_template, job_id, i
+                    chunk, template_name, use_word_template, job_id, i, template_type, template_html, template_text
                 )
                 future_to_chunk[future] = chunk
             
@@ -431,7 +443,7 @@ def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template,
         progress_tracker[job_id]['status'] = 'error'
         progress_tracker[job_id]['message'] = f'Erro: {str(e)}'
 
-def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chunk_id):
+def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chunk_id, template_type='word', template_html='', template_text=''):
     """Processa um chunk de dados com otimizações de velocidade"""
     pdf_files = []
     
@@ -445,12 +457,15 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
             print(f"   📄 Gerando PDF {i+1}/{len(chunk)} para: {nome}")
             
             # Gerar PDF individual com otimizações
-            if use_word_template and template_name:
+            if template_type == 'html' and template_html:
+                print(f"      🎨 Usando template HTML")
+                pdf_buffer = generate_html_pdf_with_formatting(row_data, template_html)
+            elif use_word_template and template_name:
                 print(f"      🎨 Usando template Word: {template_name}")
                 pdf_buffer = generate_word_pdf_ultra_optimized(row_data, template_name)
             else:
-                print(f"      📝 Usando template padrão")
-                template_text = DEFAULT_TEMPLATE
+                print(f"      📝 Usando template de texto")
+                template_text = template_text or DEFAULT_TEMPLATE
                 pdf_buffer = generate_simple_pdf_optimized(row_data, template_text)
             
             # Salvar PDF temporário com nome único
@@ -1375,6 +1390,121 @@ def generate_simple_pdf_optimized(row_data, template_text):
     doc.build(story)
     pdf_buffer.seek(0)
     return pdf_buffer
+
+def generate_html_pdf_with_formatting(row_data, template_html):
+    """Gera PDF usando HTML + CSS para preservar formatação perfeitamente"""
+    try:
+        print(f"   🎨 Gerando PDF com HTML + CSS")
+        
+        # Substituir placeholders no HTML
+        html_content = template_html
+        for key, value in row_data.items():
+            placeholder = f'[{key.upper()}]'
+            html_content = html_content.replace(placeholder, str(value))
+        
+        # CSS para formatação profissional
+        css_styles = """
+        <style>
+            body {
+                font-family: 'Arial', sans-serif;
+                margin: 0;
+                padding: 20px;
+                background: white;
+                color: #333;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 30px;
+                border-bottom: 2px solid #0915FF;
+                padding-bottom: 15px;
+            }
+            .logo {
+                color: #0915FF;
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 10px;
+            }
+            .content {
+                line-height: 1.6;
+                margin: 20px 0;
+            }
+            .important {
+                font-weight: bold;
+                color: #0915FF;
+            }
+            .data-row {
+                margin: 10px 0;
+                padding: 8px;
+                background: #f8f9fa;
+                border-left: 4px solid #0915FF;
+            }
+            .footer {
+                margin-top: 30px;
+                text-align: center;
+                font-style: italic;
+                color: #666;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 15px 0;
+            }
+            th {
+                background: #0915FF;
+                color: white;
+                padding: 10px;
+                text-align: left;
+                font-weight: bold;
+            }
+            td {
+                padding: 8px;
+                border: 1px solid #ddd;
+            }
+            tr:nth-child(even) {
+                background: #f8f9fa;
+            }
+        </style>
+        """
+        
+        # HTML completo
+        full_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            {css_styles}
+        </head>
+        <body>
+            {html_content}
+        </body>
+        </html>
+        """
+        
+        # Gerar PDF usando weasyprint ou pdfkit
+        try:
+            # Tentar usar weasyprint primeiro
+            from weasyprint import HTML, CSS
+            pdf_buffer = io.BytesIO()
+            HTML(string=full_html).write_pdf(pdf_buffer)
+            pdf_buffer.seek(0)
+            return pdf_buffer.getvalue()
+        except ImportError:
+            # Fallback para pdfkit
+            import pdfkit
+            options = {
+                'page-size': 'A4',
+                'margin-top': '0.5in',
+                'margin-right': '0.5in',
+                'margin-bottom': '0.5in',
+                'margin-left': '0.5in',
+                'encoding': "UTF-8",
+            }
+            pdf_content = pdfkit.from_string(full_html, False, options=options)
+            return pdf_content
+            
+    except Exception as e:
+        print(f"   ❌ Erro na geração HTML: {str(e)}")
+        raise e
 
 if __name__ == '__main__':
     # Configuração para produção (Render, Heroku, etc.)

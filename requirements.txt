@@ -1,12 +1,9 @@
-Flask>=2.0.0
-pandas>=1.5.0
-openpyxl>=3.0.0
-reportlab>=3.6.0
-Werkzeug>=2.0.0
-python-docx>=0.8.11
-docx2pdf>=0.1.8
-# Linux-compatible Word to PDF conversion
+Flask==2.3.3
+pandas==2.0.3
+openpyxl==3.1.2
+python-docx==0.8.11
+reportlab==4.0.4
 python-docx-replace>=0.1.0
-# Windows-specific dependencies (commented for Linux deployment)
-# comtypes>=1.2.0
-# pywin32>=305 
+weasyprint==60.2
+# comtypes==1.2.0  # Windows only
+# pywin32==306      # Windows only 
