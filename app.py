@@ -1035,8 +1035,9 @@ def generate_word_pdf_ultra_optimized(row_data, template_name):
             # Usar método alternativo
             return generate_word_pdf_alternative_method(row_data, template_path, temp_docx, temp_pdf)
         
-        # Tentar converter para PDF preservando formatação
-        pdf_content = convert_word_to_pdf_preserve_formatting(temp_docx, temp_pdf)
+        # Usar método fallback que funciona no Linux
+        print(f"      🔄 Usando conversão fallback para Linux...")
+        pdf_content = convert_word_to_pdf_fallback(temp_docx, temp_pdf)
         
         # Limpar arquivos temporários
         try:
@@ -1407,12 +1408,16 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
         with open(pdf_path, 'wb') as f:
             f.write(pdf_buffer.getvalue())
         
-        print(f"   ✅ PDF gerado com sucesso: {pdf_path}")
-        return True
+        # Ler o PDF gerado e retornar o conteúdo
+        with open(pdf_path, 'rb') as f:
+            pdf_content = f.read()
+        
+        print(f"   ✅ PDF gerado com sucesso: {pdf_path} ({len(pdf_content)} bytes)")
+        return pdf_content
         
     except Exception as e:
         print(f"   ❌ Erro no fallback: {str(e)}")
-        return False
+        return None
 
 def convert_word_to_pdf_com_robust(docx_path, pdf_path):
     """Converte Word para PDF usando COM direto com tratamento robusto (método antigo)"""
