@@ -1339,28 +1339,66 @@ def convert_word_to_pdf_exact(docx_path, pdf_path):
     """Converte Word para PDF preservando formatação EXATA usando apenas docx2pdf"""
     try:
         print(f"   📄 Convertendo Word para PDF com formatação exata...")
+        print(f"   📁 Arquivo Word: {docx_path}")
+        print(f"   📁 Arquivo PDF: {pdf_path}")
+        print(f"   ✅ Word existe: {os.path.exists(docx_path)}")
+        
+        # Limpar PDF anterior se existir
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+            print(f"   🗑️ PDF anterior removido")
         
         # Usar apenas docx2pdf para preservar formatação original
+        print(f"   🔄 Iniciando conversão docx2pdf...")
         convert(docx_path, pdf_path)
+        print(f"   ✅ Conversão docx2pdf concluída")
+        
+        # Aguardar um pouco para garantir que o arquivo foi criado
+        import time
+        time.sleep(1)
         
         # Verificar se o PDF foi criado
         if os.path.exists(pdf_path):
-            with open(pdf_path, 'rb') as f:
-                pdf_content = f.read()
+            print(f"   ✅ PDF criado: {pdf_path}")
             
-            if len(pdf_content) > 0:
+            # Verificar tamanho do arquivo
+            file_size = os.path.getsize(pdf_path)
+            print(f"   📊 Tamanho do PDF: {file_size} bytes")
+            
+            if file_size > 0:
+                with open(pdf_path, 'rb') as f:
+                    pdf_content = f.read()
+                
                 print(f"   ✅ Conversão bem-sucedida: {len(pdf_content)} bytes")
                 return pdf_content
             else:
-                print(f"   ❌ PDF criado mas está vazio")
+                print(f"   ❌ PDF criado mas está vazio ({file_size} bytes)")
                 return None
         else:
             print(f"   ❌ PDF não foi criado")
+            print(f"   📁 Diretório: {os.path.dirname(pdf_path)}")
+            print(f"   📁 Arquivos no diretório: {os.listdir(os.path.dirname(pdf_path))}")
             return None
             
     except Exception as e:
         print(f"   ❌ Erro na conversão: {e}")
-        return None
+        import traceback
+        print(f"   📋 Traceback completo:")
+        traceback.print_exc()
+        
+        # Fallback: tentar método anterior
+        print(f"   🔄 Tentando fallback com ReportLab...")
+        try:
+            pdf_content = convert_word_to_pdf_fallback(docx_path, pdf_path)
+            if pdf_content:
+                print(f"   ✅ Fallback bem-sucedido: {len(pdf_content)} bytes")
+                return pdf_content
+            else:
+                print(f"   ❌ Fallback também falhou")
+                return None
+        except Exception as fallback_error:
+            print(f"   ❌ Erro no fallback: {fallback_error}")
+            return None
 
 if __name__ == '__main__':
     # Configuração para produção (Render, Heroku, etc.)
