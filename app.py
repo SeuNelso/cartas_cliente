@@ -493,7 +493,12 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
                 template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
                 if os.path.exists(template_path):
                     print(f"      🎨 Usando template Word: {template_name}")
-                    pdf_buffer = generate_word_pdf_ultra_optimized(row_data, template_name)
+                    try:
+                        pdf_buffer = generate_word_pdf_ultra_optimized(row_data, template_name)
+                    except Exception as e:
+                        print(f"      ❌ Erro na geração Word PDF: {e}")
+                        print(f"      🔄 Usando fallback template padrão")
+                        pdf_buffer = generate_digi_template_pdf(row_data)
                 else:
                     print(f"      ⚠️ Template Word não encontrado, usando template padrão")
                     pdf_buffer = generate_digi_template_pdf(row_data)
@@ -850,6 +855,9 @@ def generate_word_pdf_ultra_optimized(row_data, template_name):
         
         print(f"      📁 Template path: {template_path}")
         print(f"      ✅ Template existe: {os.path.exists(template_path)}")
+        
+        if not os.path.exists(template_path):
+            raise Exception(f"Template não encontrado: {template_path}")
         
         # Criar documento temporário com nome único
         timestamp = int(time.time() * 1000000)  # Microsegundos para garantir unicidade
