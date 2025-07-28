@@ -234,6 +234,23 @@
             background: #218838;
             transform: translateY(-2px);
         }
+        
+        .convert-btn {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 0;
+        }
+        
+        .convert-btn:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
 
         .generate-btn:disabled {
             background: #6c757d;
@@ -550,6 +567,13 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        
+                        <div class="template-option">
+                            <button type="button" class="convert-btn" onclick="convertWordToHtml()">
+                                🔄 Converter Word → HTML
+                            </button>
+                            <p class="description">Converte seu template Word para HTML com formatação preservada</p>
+                        </div>
                     </div>
 
                     <div id="htmlTemplateSection">
@@ -629,6 +653,9 @@ Equipe de Atendimento</textarea>
                     </ul>
                 </div>
 
+                <div id="successMessage" class="success" style="display: none;"></div>
+                <div id="errorMessage" class="error" style="display: none;"></div>
+                
                 <button class="generate-btn" id="generateBtn" onclick="generatePDF()">
                     🎨 Gerar Cartas PDF
                 </button>
@@ -1048,6 +1075,58 @@ Equipe de Atendimento</textarea>
             setTimeout(() => {
                 successDiv.style.display = 'none';
             }, 5000);
+        }
+        
+        function convertWordToHtml() {
+            const templateInput = document.getElementById('templateInput');
+            const file = templateInput.files[0];
+            
+            if (!file) {
+                showError('Por favor, selecione um arquivo Word primeiro');
+                return;
+            }
+            
+            if (!file.name.match(/\.docx$/)) {
+                showError('Por favor, selecione um arquivo Word (.docx)');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('template', file);
+            
+            // Mostrar loading
+            const convertBtn = document.querySelector('.convert-btn');
+            const originalText = convertBtn.textContent;
+            convertBtn.disabled = true;
+            convertBtn.textContent = '🔄 Convertendo...';
+            
+            fetch('/api/convert-word-to-html', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Preencher o editor HTML com o resultado
+                    document.getElementById('htmlEditor').value = data.html;
+                    
+                    // Mudar para template HTML
+                    document.querySelector('input[value="html"]').checked = true;
+                    toggleTemplateType();
+                    
+                    showSuccess('Template Word convertido para HTML com sucesso!');
+                } else {
+                    showError('Erro na conversão: ' + data.error);
+                }
+            })
+            .catch(error => {
+                showError('Erro na conversão: ' + error.message);
+            })
+            .finally(() => {
+                // Restaurar botão
+                convertBtn.disabled = false;
+                convertBtn.textContent = originalText;
+            });
         }
 
         function hideMessages() {

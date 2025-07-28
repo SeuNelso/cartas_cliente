@@ -1506,6 +1506,143 @@ def generate_html_pdf_with_formatting(row_data, template_html):
         print(f"   ❌ Erro na geração HTML: {str(e)}")
         raise e
 
+def convert_word_to_html(docx_path):
+    """Converte template Word para HTML preservando formatação"""
+    try:
+        print(f"   🔄 Convertendo Word para HTML...")
+        
+        # Ler o documento Word
+        doc = Document(docx_path)
+        
+        # HTML base
+        html_parts = []
+        html_parts.append('<!DOCTYPE html>')
+        html_parts.append('<html>')
+        html_parts.append('<head>')
+        html_parts.append('    <meta charset="UTF-8">')
+        html_parts.append('    <title>Carta Personalizada</title>')
+        html_parts.append('</head>')
+        html_parts.append('<body>')
+        
+        # Processar parágrafos
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                # Processar cada run para preservar formatação
+                paragraph_html = []
+                
+                for run in paragraph.runs:
+                    text = run.text
+                    html_text = text
+                    
+                    # Aplicar formatação
+                    if run.bold:
+                        html_text = f'<strong>{html_text}</strong>'
+                    if run.italic:
+                        html_text = f'<em>{html_text}</em>'
+                    if run.underline:
+                        html_text = f'<u>{html_text}</u>'
+                    
+                    # Aplicar cor da fonte
+                    if hasattr(run.font, 'color') and run.font.color.rgb:
+                        color_hex = f'#{run.font.color.rgb:06x}'
+                        html_text = f'<span style="color: {color_hex}">{html_text}</span>'
+                    
+                    paragraph_html.append(html_text)
+                
+                # Juntar conteúdo do parágrafo
+                full_html = ''.join(paragraph_html)
+                
+                # Determinar tag baseada no estilo
+                if paragraph.style.name.startswith('Heading'):
+                    if 'Heading 1' in paragraph.style.name:
+                        html_parts.append(f'    <h1>{full_html}</h1>')
+                    elif 'Heading 2' in paragraph.style.name:
+                        html_parts.append(f'    <h2>{full_html}</h2>')
+                    else:
+                        html_parts.append(f'    <h3>{full_html}</h3>')
+                else:
+                    html_parts.append(f'    <p>{full_html}</p>')
+        
+        # Processar tabelas
+        for table in doc.tables:
+            html_parts.append('    <table>')
+            
+            for i, row in enumerate(table.rows):
+                html_parts.append('        <tr>')
+                
+                for cell in row.cells:
+                    # Processar conteúdo da célula
+                    cell_html = []
+                    for paragraph in cell.paragraphs:
+                        for run in paragraph.runs:
+                            text = run.text
+                            if run.bold:
+                                text = f'<strong>{text}</strong>'
+                            if run.underline:
+                                text = f'<u>{text}</u>'
+                            cell_html.append(text)
+                    
+                    cell_content = ''.join(cell_html)
+                    
+                    # Determinar se é cabeçalho (primeira linha)
+                    if i == 0:
+                        html_parts.append(f'            <th>{cell_content}</th>')
+                    else:
+                        html_parts.append(f'            <td>{cell_content}</td>')
+                
+                html_parts.append('        </tr>')
+            
+            html_parts.append('    </table>')
+        
+        html_parts.append('</body>')
+        html_parts.append('</html>')
+        
+        # Juntar HTML
+        html_content = '\n'.join(html_parts)
+        
+        print(f"   ✅ Conversão Word → HTML concluída")
+        return html_content
+        
+    except Exception as e:
+        print(f"   ❌ Erro na conversão Word → HTML: {str(e)}")
+        raise e
+
+@app.route('/api/convert-word-to-html', methods=['POST'])
+def convert_word_to_html_endpoint():
+    """Endpoint para converter template Word para HTML"""
+    try:
+        if 'template' not in request.files:
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+        
+        file = request.files['template']
+        if file.filename == '':
+            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+        
+        if not allowed_template_file(file.filename):
+            return jsonify({'error': 'Tipo de arquivo não permitido. Use .docx'}), 400
+        
+        # Salvar arquivo temporário
+        temp_path = os.path.join(app.config['TEMP_FOLDER'], f'temp_convert_{int(time.time())}.docx')
+        file.save(temp_path)
+        
+        try:
+            # Converter Word para HTML
+            html_content = convert_word_to_html(temp_path)
+            
+            return jsonify({
+                'success': True,
+                'html': html_content,
+                'message': 'Template Word convertido para HTML com sucesso!'
+            })
+            
+        finally:
+            # Limpar arquivo temporário
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        return jsonify({'error': f'Erro na conversão: {str(e)}'}), 500
+
 if __name__ == '__main__':
     # Configuração para produção (Render, Heroku, etc.)
     port = int(os.environ.get('PORT', 5000))
