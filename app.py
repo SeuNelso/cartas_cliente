@@ -1174,4 +1174,8 @@ if __name__ == '__main__':
     print("🔥 Performance: SUPER ULTRA para qualquer quantidade")
     print("🎯 Meta: Máxima velocidade sem limites")
     
-    app.run(debug=False, host='0.0.0.0', port=5000, threaded=True) 
+    # Configuração para produção
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    
+    app.run(debug=debug, host='0.0.0.0', port=port, threaded=True) 

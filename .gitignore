@@ -61,4 +61,9 @@ temp_*
 result_*
 
 # Windows
-*.lnk 
+*.lnk
+
+# Deploy files (keep these)
+# vercel.json
+# Procfile
+# runtime.txt 
