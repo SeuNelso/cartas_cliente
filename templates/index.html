@@ -517,9 +517,9 @@
                             </label>
                         </div>
                         <div class="template-option">
-                            <label>
-                                <input type="radio" name="templateType" value="text" onchange="toggleTemplateType()">
-                                Usar Editor de Texto
+                            <label style="color: #999;">
+                                <input type="radio" name="templateType" value="text" onchange="toggleTemplateType()" disabled>
+                                Usar Editor de Texto (Desabilitado)
                             </label>
                         </div>
                     </div>
@@ -547,16 +547,11 @@
                     </div>
 
                     <div id="textTemplateSection" style="display: none;">
-                        <label>Template de Texto:</label>
-                        <textarea id="templateEditor" class="template-editor" placeholder="Digite seu template aqui...">Prezado Cliente,
-
-Este é o seu número: [NUMERO]
-E o seu ICCID: [ICCID]
-
-Agradecemos sua preferência.
-
-Atenciosamente,
-Equipe de Atendimento</textarea>
+                        <div class="warning-box">
+                            <h4>⚠️ Template Word Obrigatório</h4>
+                            <p>Este sistema requer um template Word (.docx) para preservar a formatação.</p>
+                            <p>Por favor, selecione "Template Word" acima e faça upload do seu arquivo .docx.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -573,7 +568,7 @@ Equipe de Atendimento</textarea>
                     <h4>ℹ️ Como Funciona</h4>
                     <ul>
                         <li>Faça upload do seu arquivo Excel</li>
-                        <li>Escolha entre template Word ou editor de texto</li>
+                        <li>Faça upload do seu template Word (.docx)</li>
                         <li>Use placeholders [NUMERO] e [ICCID] no template</li>
                         <li>Para cada linha do Excel, será gerado um PDF individual</li>
                         <li>Se houver múltiplas linhas, receberá um arquivo ZIP</li>

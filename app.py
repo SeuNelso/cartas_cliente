@@ -97,16 +97,8 @@ def allowed_file(filename):
 def allowed_template_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_TEMPLATE_EXTENSIONS
 
-# Template padrão da carta (fallback)
-DEFAULT_TEMPLATE = """Prezado Cliente,
-
-Este é o seu número: [NUMERO]
-E o seu ICCID: [ICCID]
-
-Agradecemos sua preferência.
-
-Atenciosamente,
-Equipe de Atendimento"""
+# Não há template padrão - deve usar apenas template importado
+DEFAULT_TEMPLATE = None
 
 @app.route('/api/health')
 def health_check():
@@ -213,9 +205,8 @@ def generate_pdf():
                 print(f"   🎨 Usando template Word: {template_name}")
                 pdf_buffer = generate_word_pdf_ultra_optimized(excel_data[0], template_name)
             else:
-                print(f"   📝 Usando template padrão")
-                template_text = DEFAULT_TEMPLATE
-                pdf_buffer = generate_simple_pdf_optimized(excel_data[0], template_text)
+                print(f"   ❌ Template Word obrigatório")
+                return jsonify({'error': 'É obrigatório selecionar um template Word (.docx)'}), 400
             
             # Nome do arquivo baseado no número
             numero = excel_data[0].get('NUMERO', '001')
@@ -440,14 +431,13 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
             nome = row_data.get('NOME', f'registro_{i+1}')
             print(f"   📄 Gerando PDF {i+1}/{len(chunk)} para: {nome}")
             
-            # Gerar PDF individual com otimizações
+            # Gerar PDF individual com template Word obrigatório
             if use_word_template and template_name:
                 print(f"      🎨 Usando template Word: {template_name}")
                 pdf_buffer = generate_word_pdf_ultra_optimized(row_data, template_name)
             else:
-                print(f"      📝 Usando template padrão")
-                template_text = DEFAULT_TEMPLATE
-                pdf_buffer = generate_simple_pdf_optimized(row_data, template_text)
+                print(f"      ❌ Template Word obrigatório")
+                raise Exception("É obrigatório selecionar um template Word (.docx)")
             
             # Salvar PDF temporário com nome único
             temp_pdf_path = os.path.join(
