@@ -497,8 +497,8 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
                 template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
                 if os.path.exists(template_path):
                     print(f"      🎨 Usando template Word: {template_name}")
-                    pdf_buffer = force_word_conversion(row_data, template_path)
-                    conversion_method = "Word Template"
+                    pdf_buffer = convert_word_exact(row_data, template_path)
+                    conversion_method = "Word Template (Exato)"
                 else:
                     print(f"      ⚠️ Template Word não encontrado")
             
@@ -1740,6 +1740,195 @@ def force_word_conversion(row_data, template_path):
             doc_pdf.build(story)
             pdf_buffer.seek(0)
             return pdf_buffer
+
+def convert_word_exact(row_data, template_path):
+    """Converte Word para PDF preservando 100% da formatação original"""
+    try:
+        print(f"      🎯 Convertendo Word EXATO (preservando header/footer)...")
+        
+        # Verificar dados de entrada
+        numero = row_data.get('NUMERO', 'N/A')
+        iccid = row_data.get('ICCID', 'N/A')
+        print(f"      📊 Dados: Número={numero}, ICCID={iccid}")
+        
+        # Criar arquivo temporário único
+        timestamp = int(time.time() * 1000000)
+        temp_docx = os.path.join(app.config['TEMP_FOLDER'], f'exact_{timestamp}.docx')
+        temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'exact_{timestamp}.pdf')
+        
+        # Copiar template original
+        shutil.copy2(template_path, temp_docx)
+        print(f"      ✅ Template copiado: {temp_docx}")
+        
+        # Verificar se o arquivo foi copiado corretamente
+        if not os.path.exists(temp_docx):
+            print(f"      ❌ Falha ao copiar template")
+            return None
+            
+        # Carregar documento
+        doc = Document(temp_docx)
+        
+        # Substituir APENAS os placeholders necessários, preservando formatação
+        replacements_made = 0
+        for paragraph in doc.paragraphs:
+            original_text = paragraph.text
+            new_text = original_text
+            
+            # Substituir placeholders específicos
+            for key, value in row_data.items():
+                placeholder = f'[{key.upper()}]'
+                if placeholder in new_text:
+                    new_text = new_text.replace(placeholder, str(value) if value is not None else '')
+                    replacements_made += 1
+                    print(f"      🔄 Substituído: {placeholder} → {value}")
+            
+            # Substituir placeholders genéricos
+            for key, value in row_data.items():
+                placeholder = f'[{key}]'
+                if placeholder in new_text:
+                    new_text = new_text.replace(placeholder, str(value) if value is not None else '')
+                    replacements_made += 1
+                    print(f"      🔄 Substituído: {placeholder} → {value}")
+            
+            if new_text != original_text:
+                paragraph.text = new_text
+                print(f"      ✅ Parágrafo atualizado")
+        
+        # Processar tabelas preservando formatação
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        original_text = paragraph.text
+                        new_text = original_text
+                        
+                        for key, value in row_data.items():
+                            placeholder = f'[{key.upper()}]'
+                            if placeholder in new_text:
+                                new_text = new_text.replace(placeholder, str(value) if value is not None else '')
+                                replacements_made += 1
+                        
+                        if new_text != original_text:
+                            paragraph.text = new_text
+        
+        print(f"      📊 Total de substituições: {replacements_made}")
+        
+        # Salvar documento processado
+        doc.save(temp_docx)
+        print(f"      ✅ Documento salvo com substituições")
+        
+        # Verificar se o arquivo foi salvo
+        if not os.path.exists(temp_docx):
+            print(f"      ❌ Falha ao salvar documento processado")
+            return None
+        
+        # CONVERSÃO DIRETA preservando formatação original
+        pdf_content = None
+        method_used = "Nenhum"
+        
+        # Método 1: docx2pdf (preserva 100% da formatação)
+        try:
+            print(f"      🔄 Método 1: docx2pdf (formatação original)...")
+            
+            # Inicializar COM no Windows
+            import platform
+            if platform.system() == 'Windows':
+                try:
+                    import pythoncom
+                    pythoncom.CoInitialize()
+                    print(f"      ✅ COM inicializado")
+                except Exception as com_error:
+                    print(f"      ⚠️ Erro COM: {com_error}")
+            
+            # Converter diretamente
+            from docx2pdf import convert
+            convert(temp_docx, temp_pdf)
+            
+            # Aguardar e verificar
+            import time
+            time.sleep(3)  # Aumentar tempo de espera
+            
+            if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
+                with open(temp_pdf, 'rb') as f:
+                    pdf_content = f.read()
+                print(f"      ✅ Método 1 bem-sucedido: {len(pdf_content)} bytes")
+                method_used = "docx2pdf (Original)"
+            else:
+                print(f"      ❌ Método 1 falhou - PDF não criado ou vazio")
+        except Exception as e:
+            print(f"      ❌ Método 1 falhou: {e}")
+        
+        # Método 2: Tentar novamente com configurações diferentes
+        if not pdf_content:
+            try:
+                print(f"      🔄 Método 2: docx2pdf (segunda tentativa)...")
+                
+                # Limpar PDF anterior
+                if os.path.exists(temp_pdf):
+                    os.remove(temp_pdf)
+                
+                # Tentar novamente
+                convert(temp_docx, temp_pdf)
+                time.sleep(5)  # Mais tempo de espera
+                
+                if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
+                    with open(temp_pdf, 'rb') as f:
+                        pdf_content = f.read()
+                    print(f"      ✅ Método 2 bem-sucedido: {len(pdf_content)} bytes")
+                    method_used = "docx2pdf (Tentativa 2)"
+                else:
+                    print(f"      ❌ Método 2 falhou")
+            except Exception as e:
+                print(f"      ❌ Método 2 falhou: {e}")
+        
+        # Método 3: Usar comtypes se disponível (Windows)
+        if not pdf_content and platform.system() == 'Windows':
+            try:
+                print(f"      🔄 Método 3: comtypes (Windows)...")
+                import comtypes.client
+                
+                # Criar instância do Word
+                word = comtypes.client.CreateObject('Word.Application')
+                word.Visible = False
+                
+                # Abrir documento
+                doc_word = word.Documents.Open(os.path.abspath(temp_docx))
+                
+                # Salvar como PDF
+                doc_word.SaveAs(os.path.abspath(temp_pdf), FileFormat=17)  # PDF
+                doc_word.Close()
+                word.Quit()
+                
+                time.sleep(2)
+                
+                if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
+                    with open(temp_pdf, 'rb') as f:
+                        pdf_content = f.read()
+                    print(f"      ✅ Método 3 bem-sucedido: {len(pdf_content)} bytes")
+                    method_used = "comtypes (Word)"
+                else:
+                    print(f"      ❌ Método 3 falhou")
+            except Exception as e:
+                print(f"      ❌ Método 3 falhou: {e}")
+        
+        # Limpar arquivos temporários
+        try:
+            os.remove(temp_docx)
+            if os.path.exists(temp_pdf):
+                os.remove(temp_pdf)
+        except:
+            pass
+        
+        if pdf_content:
+            print(f"      🎉 Conversão EXATA bem-sucedida! Método: {method_used}")
+            return io.BytesIO(pdf_content)
+        else:
+            print(f"      ❌ Todos os métodos falharam")
+            return None
+            
+    except Exception as e:
+        print(f"      ❌ Erro na conversão exata: {e}")
+        return None
 
 if __name__ == '__main__':
     # Configuração para produção (Render, Heroku, etc.)

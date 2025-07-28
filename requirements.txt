@@ -7,3 +7,4 @@ python-docx==0.8.11
 # Dependências essenciais para conversão robusta
 docx2pdf==0.1.8
 pywin32==306; sys_platform == "win32"
+comtypes==1.2.0; sys_platform == "win32"
