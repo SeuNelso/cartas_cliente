@@ -488,16 +488,67 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
             nome = row_data.get('NOME', f'registro_{i+1}')
             print(f"   📄 Gerando PDF {i+1}/{len(chunk)} para: {nome}")
             
-            # Verificar se há template Word disponível
+            # Forçar uso do template Word se disponível
             if use_word_template and template_name:
                 template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
                 if os.path.exists(template_path):
                     print(f"      🎨 Usando template Word: {template_name}")
+                    
+                    # Tentar múltiplas vezes com diferentes métodos
+                    pdf_buffer = None
+                    
+                    # Método 1: Conversão exata
                     try:
+                        print(f"      🔄 Tentando método 1: Conversão exata...")
                         pdf_buffer = generate_word_pdf_ultra_optimized(row_data, template_name)
+                        if pdf_buffer and pdf_buffer.getvalue():
+                            print(f"      ✅ Método 1 bem-sucedido")
                     except Exception as e:
-                        print(f"      ❌ Erro na geração Word PDF: {e}")
-                        print(f"      🔄 Usando fallback template padrão")
+                        print(f"      ❌ Método 1 falhou: {e}")
+                    
+                    # Método 2: Fallback com ReportLab se método 1 falhar
+                    if not pdf_buffer or not pdf_buffer.getvalue():
+                        try:
+                            print(f"      🔄 Tentando método 2: Fallback ReportLab...")
+                            # Criar documento temporário
+                            timestamp = int(time.time() * 1000000)
+                            temp_docx = os.path.join(app.config['TEMP_FOLDER'], f'temp_{timestamp}.docx')
+                            temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'temp_{timestamp}.pdf')
+                            
+                            # Copiar e processar template
+                            shutil.copy2(template_path, temp_docx)
+                            doc = Document(temp_docx)
+                            
+                            # Substituir placeholders
+                            for paragraph in doc.paragraphs:
+                                for key, value in row_data.items():
+                                    placeholder = f'[{key.upper()}]'
+                                    if placeholder in paragraph.text:
+                                        paragraph.text = paragraph.text.replace(placeholder, str(value) if value is not None else '')
+                            
+                            doc.save(temp_docx)
+                            
+                            # Converter usando fallback
+                            pdf_content = convert_word_to_pdf_fallback(temp_docx, temp_pdf)
+                            if pdf_content:
+                                pdf_buffer = io.BytesIO(pdf_content)
+                                pdf_buffer.seek(0)
+                                print(f"      ✅ Método 2 bem-sucedido")
+                            
+                            # Limpar arquivos temporários
+                            try:
+                                os.remove(temp_docx)
+                                if os.path.exists(temp_pdf):
+                                    os.remove(temp_pdf)
+                            except:
+                                pass
+                                
+                        except Exception as e:
+                            print(f"      ❌ Método 2 falhou: {e}")
+                    
+                    # Se ainda não funcionou, usar template padrão
+                    if not pdf_buffer or not pdf_buffer.getvalue():
+                        print(f"      ⚠️ Todos os métodos Word falharam, usando template padrão")
                         pdf_buffer = generate_digi_template_pdf(row_data)
                 else:
                     print(f"      ⚠️ Template Word não encontrado, usando template padrão")
@@ -1351,6 +1402,18 @@ def convert_word_to_pdf_exact(docx_path, pdf_path):
         print(f"   📁 Arquivo PDF: {pdf_path}")
         print(f"   ✅ Word existe: {os.path.exists(docx_path)}")
         
+        # Verificar se o arquivo Word existe e tem conteúdo
+        if not os.path.exists(docx_path):
+            print(f"   ❌ Arquivo Word não existe: {docx_path}")
+            return None
+            
+        word_size = os.path.getsize(docx_path)
+        if word_size == 0:
+            print(f"   ❌ Arquivo Word está vazio: {docx_path}")
+            return None
+            
+        print(f"   📊 Tamanho do Word: {word_size} bytes")
+        
         # Limpar PDF anterior se existir
         if os.path.exists(pdf_path):
             os.remove(pdf_path)
@@ -1378,7 +1441,7 @@ def convert_word_to_pdf_exact(docx_path, pdf_path):
             
             # Aguardar um pouco para garantir que o arquivo foi criado
             import time
-            time.sleep(2)
+            time.sleep(3)  # Aumentar tempo de espera
             
             # Verificar se o PDF foi criado
             if os.path.exists(pdf_path):
