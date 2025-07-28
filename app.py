@@ -1029,7 +1029,12 @@ def convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path):
     # Fallback se Windows não estiver disponível
     if not WINDOWS_AVAILABLE:
         print(f"   ⚠️ Windows não disponível, usando fallback")
-        return convert_word_to_pdf_fallback(docx_path, pdf_path)
+        success = convert_word_to_pdf_fallback(docx_path, pdf_path)
+        if success and os.path.exists(pdf_path):
+            with open(pdf_path, 'rb') as f:
+                return f.read()
+        else:
+            raise Exception("Falha na conversão usando fallback")
     
     word = None
     doc = None
@@ -1117,14 +1122,14 @@ def convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path):
             pass
 
 def convert_word_to_pdf_fallback(docx_path, pdf_path):
-    """Fallback para conversão Word para PDF quando Windows não está disponível"""
+    """Fallback melhorado para conversão Word para PDF quando Windows não está disponível"""
     try:
-        print(f"   📄 Usando fallback para conversão")
+        print(f"   📄 Usando fallback melhorado para conversão")
         
         # Ler o documento Word
         doc = Document(docx_path)
         
-        # Gerar PDF com formatação melhorada
+        # Gerar PDF com formatação preservada
         pdf_buffer = io.BytesIO()
         doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
                                    topMargin=0.5*inch, bottomMargin=0.5*inch,
@@ -1134,12 +1139,12 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
         # Estilos melhorados
         styles = getSampleStyleSheet()
         
-        # Estilo para logo DIGI
-        logo_style = ParagraphStyle(
-            'Logo',
+        # Estilo para logo/título principal
+        title_style = ParagraphStyle(
+            'Title',
             parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=25,
+            fontSize=20,
+            spaceAfter=20,
             alignment=1,  # Centralizado
             textColor=colors.HexColor('#0915FF'),
             fontName='Helvetica-Bold'
@@ -1167,7 +1172,7 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
             textColor=colors.black
         )
         
-        # Estilo para dados da tabela
+        # Estilo para dados importantes
         data_style = ParagraphStyle(
             'Data',
             parent=styles['Normal'],
@@ -1176,7 +1181,7 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
             leading=12,
             alignment=0,  # Esquerda
             textColor=colors.black,
-            fontName='Helvetica'
+            fontName='Helvetica-Bold'
         )
         
         # Processar parágrafos preservando formatação
@@ -1188,108 +1193,102 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                 for run in paragraph.runs:
                     text = run.text
                     is_bold = run.bold
+                    is_italic = run.italic
                     is_underline = run.underline
                     
+                    # Detectar cor da fonte
+                    font_color = None
+                    if hasattr(run.font, 'color') and run.font.color.rgb:
+                        font_color = run.font.color.rgb
+                    
                     # Aplicar formatação baseada no conteúdo e estilo
-                    if 'digi' in text.lower() and len(text.strip()) <= 10:
-                        # Logo DIGI
-                        paragraph_content.append(f'<font color="#0915FF" size="18"><b>{text}</b></font>')
-                    elif is_bold and any(keyword in text.lower() for keyword in ['bem-vindo', 'número', 'iccid', 'dúvida', 'vantagens']):
-                        # Texto importante em negrito
-                        paragraph_content.append(f'<b>{text}</b>')
-                    elif is_underline:
-                        # Texto sublinhado (cabeçalhos de tabela)
-                        paragraph_content.append(f'<u>{text}</u>')
-                    elif is_bold:
-                        # Texto em negrito
-                        paragraph_content.append(f'<b>{text}</b>')
-                    else:
-                        # Texto normal
-                        paragraph_content.append(text)
+                    formatted_text = text
+                    
+                    # Aplicar negrito
+                    if is_bold:
+                        formatted_text = f'<b>{formatted_text}</b>'
+                    
+                    # Aplicar itálico
+                    if is_italic:
+                        formatted_text = f'<i>{formatted_text}</i>'
+                    
+                    # Aplicar sublinhado
+                    if is_underline:
+                        formatted_text = f'<u>{formatted_text}</u>'
+                    
+                    # Aplicar cor da fonte
+                    if font_color:
+                        # Converter cor RGB para hex
+                        color_hex = f'#{font_color:06x}'
+                        formatted_text = f'<font color="{color_hex}">{formatted_text}</font>'
+                    
+                    paragraph_content.append(formatted_text)
                 
                 # Juntar conteúdo do parágrafo
                 full_text = ''.join(paragraph_content)
                 
-                # Determinar estilo baseado no conteúdo
-                if 'digi' in full_text.lower() and len(full_text.strip()) <= 10:
-                    # Logo centralizado
-                    story.append(Paragraph(full_text, logo_style))
-                    story.append(Spacer(1, 20))
-                elif any(keyword in full_text.lower() for keyword in ['bem-vindo', 'número', 'iccid']):
-                    # Subtítulos importantes
-                    story.append(Paragraph(full_text, subtitle_style))
-                    story.append(Spacer(1, 12))
-                elif any(keyword in full_text.lower() for keyword in ['contatar', 'contactar', 'dúvida', 'ajudar']):
-                    # Seção de contato
-                    story.append(Paragraph(full_text, normal_style))
-                    story.append(Spacer(1, 8))
+                # Determinar estilo baseado no conteúdo e formatação
+                if paragraph.style.name.startswith('Heading'):
+                    # Títulos
+                    if 'digi' in full_text.lower() or len(full_text.strip()) <= 15:
+                        story.append(Paragraph(full_text, title_style))
+                    else:
+                        story.append(Paragraph(full_text, subtitle_style))
+                elif any(keyword in full_text.lower() for keyword in ['número', 'iccid', 'prezado', 'atenciosamente']):
+                    # Texto importante
+                    story.append(Paragraph(full_text, data_style))
                 else:
                     # Texto normal
                     story.append(Paragraph(full_text, normal_style))
-                    story.append(Spacer(1, 8))
+                
+                # Adicionar espaço entre parágrafos
+                story.append(Spacer(1, 6))
         
-        # Processar tabelas com formatação melhorada
+        # Processar tabelas se existirem
         for table in doc.tables:
+            # Criar dados da tabela
             table_data = []
-            has_header = False
-            
-            for i, row in enumerate(table.rows):
+            for row in table.rows:
                 row_data = []
                 for cell in row.cells:
-                    # Processar formatação das células
-                    cell_content = []
-                    for run in cell.paragraphs[0].runs:
-                        if run.underline:
-                            cell_content.append(f'<u>{run.text}</u>')
-                        elif run.bold:
-                            cell_content.append(f'<b>{run.text}</b>')
-                        else:
-                            cell_content.append(run.text)
-                    
-                    cell_text = ''.join(cell_content).strip()
+                    # Processar conteúdo da célula
+                    cell_text = ''
+                    for paragraph in cell.paragraphs:
+                        for run in paragraph.runs:
+                            text = run.text
+                            if run.bold:
+                                text = f'<b>{text}</b>'
+                            if run.underline:
+                                text = f'<u>{text}</u>'
+                            cell_text += text
                     row_data.append(cell_text)
-                    
-                    # Detectar se é cabeçalho (primeira linha com texto sublinhado)
-                    if i == 0 and any(run.underline for run in cell.paragraphs[0].runs):
-                        has_header = True
-                
                 table_data.append(row_data)
             
             if table_data:
                 # Criar tabela no PDF
                 pdf_table = Table(table_data)
                 
-                if has_header:
-                    # Tabela com cabeçalho formatado
-                    pdf_table.setStyle(TableStyle([
-                        # Cabeçalho da tabela
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0915FF')),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 12),
-                        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-                        # Corpo da tabela
-                        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-                        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                        ('FONTSIZE', (0, 1), (-1, -1), 11),
-                        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#0915FF')),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F0F8FF')])
-                    ]))
-                else:
-                    # Tabela simples
-                    pdf_table.setStyle(TableStyle([
-                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                        ('FONTSIZE', (0, 0), (-1, -1), 11),
-                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                        ('BACKGROUND', (0, 0), (-1, -1), colors.white)
-                    ]))
+                # Estilo da tabela
+                table_style = TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                    ('TOPPADDING', (0, 0), (-1, -1), 6),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ])
                 
+                # Se a primeira linha tem texto em negrito, tratar como cabeçalho
+                if table_data and any('<b>' in cell for cell in table_data[0]):
+                    table_style.add('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0915FF'))
+                    table_style.add('TEXTCOLOR', (0, 0), (-1, 0), colors.white)
+                    table_style.add('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold')
+                
+                pdf_table.setStyle(table_style)
                 story.append(pdf_table)
-                story.append(Spacer(1, 15))
+                story.append(Spacer(1, 12))
         
+        # Construir PDF
         doc_pdf.build(story)
         pdf_buffer.seek(0)
         
@@ -1297,14 +1296,12 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
         with open(pdf_path, 'wb') as f:
             f.write(pdf_buffer.getvalue())
         
-        file_size = os.path.getsize(pdf_path)
-        print(f"   ✅ PDF fallback criado: {file_size} bytes")
-        
-        return pdf_buffer.getvalue()
+        print(f"   ✅ PDF gerado com sucesso usando fallback melhorado")
+        return True
         
     except Exception as e:
-        print(f"   ❌ Erro no fallback: {e}")
-        raise e
+        print(f"   ❌ Erro no fallback: {str(e)}")
+        return False
 
 def convert_word_to_pdf_com_robust(docx_path, pdf_path):
     """Converte Word para PDF usando COM direto com tratamento robusto (método antigo)"""
