@@ -111,6 +111,41 @@ def health_check():
         'version': '1.0.0'
     })
 
+@app.route('/api/status')
+def system_status():
+    """Endpoint para verificar status do sistema e se está pronto para próximo lote"""
+    try:
+        # Verificar se há jobs ativos
+        active_jobs = len([job for job in progress_tracker.values() if job['status'] == 'processing'])
+        
+        # Verificar espaço em disco
+        temp_folder = app.config['TEMP_FOLDER']
+        disk_usage = 0
+        if os.path.exists(temp_folder):
+            for filename in os.listdir(temp_folder):
+                file_path = os.path.join(temp_folder, filename)
+                if os.path.isfile(file_path):
+                    disk_usage += os.path.getsize(file_path)
+        
+        # Verificar se sistema está pronto
+        is_ready = active_jobs == 0
+        
+        return jsonify({
+            'status': 'ready' if is_ready else 'busy',
+            'active_jobs': active_jobs,
+            'total_jobs': len(progress_tracker),
+            'disk_usage_mb': round(disk_usage / (1024 * 1024), 2),
+            'workers': app.config['MAX_WORKERS'],
+            'chunk_size': app.config['CHUNK_SIZE'],
+            'ready_for_next_batch': is_ready,
+            'message': 'Sistema pronto para próximo lote!' if is_ready else f'{active_jobs} job(s) em processamento'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
 @app.route('/')
 def index():
     # Listar templates disponíveis
@@ -413,6 +448,9 @@ def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template,
         print(f"   🚀 Taxa SUPER: {len(data_list)/total_time:.2f} PDFs/segundo")
         print(f"   📁 ZIP salvo em: {temp_zip_path}")
         
+        # Preparar sistema para próximo lote
+        prepare_system_for_next_batch(job_id)
+        
     except Exception as e:
         print(f"   ❌ Erro na geração: {e}")
         progress_tracker[job_id]['status'] = 'error'
@@ -478,6 +516,54 @@ def cleanup_temp_files(pdf_files):
                 os.remove(pdf_path)
         except:
             pass
+
+def prepare_system_for_next_batch(job_id):
+    """Prepara o sistema para gerar mais lotes após completar um job"""
+    try:
+        print(f"🔄 Preparando sistema para próximo lote...")
+        
+        # Limpar cache de templates para garantir templates atualizados
+        template_cache.clear()
+        print(f"   ✅ Cache de templates limpo")
+        
+        # Limpar jobs antigos (manter apenas o atual por um tempo)
+        old_jobs = [jid for jid in progress_tracker.keys() if jid != job_id]
+        for old_job in old_jobs:
+            if old_job in progress_tracker:
+                # Manter job atual por 5 minutos para download
+                job_age = time.time() - progress_tracker[old_job].get('start_time', 0)
+                if job_age > 300:  # 5 minutos
+                    del progress_tracker[old_job]
+                    if old_job in current_jobs:
+                        current_jobs.remove(old_job)
+        
+        print(f"   ✅ Jobs antigos limpos")
+        
+        # Limpar arquivos temporários antigos
+        temp_files = []
+        for filename in os.listdir(app.config['TEMP_FOLDER']):
+            if filename.startswith('temp_') and not filename.startswith(f'temp_{job_id}'):
+                file_path = os.path.join(app.config['TEMP_FOLDER'], filename)
+                try:
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                        temp_files.append(filename)
+                except:
+                    pass
+        
+        print(f"   ✅ {len(temp_files)} arquivos temporários antigos removidos")
+        
+        # Resetar configurações para próximo lote
+        app.config['MAX_WORKERS'] = 8  # Manter configuração otimizada
+        app.config['CHUNK_SIZE'] = 5   # Manter chunks otimizados
+        
+        print(f"   ✅ Sistema pronto para próximo lote!")
+        print(f"   🚀 Workers: {app.config['MAX_WORKERS']}")
+        print(f"   📦 Chunk Size: {app.config['CHUNK_SIZE']}")
+        
+    except Exception as e:
+        print(f"   ⚠️ Aviso ao preparar sistema: {e}")
+        # Não falhar o job por causa da limpeza
 
 @lru_cache(maxsize=10)
 def prepare_template_cache(template_name):

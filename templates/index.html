@@ -234,6 +234,37 @@
             background: #218838;
             transform: translateY(-2px);
         }
+        
+        .status-box {
+            background: #f8f9fa;
+            border: 2px solid #28a745;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .status-box.busy {
+            border-color: #ffc107;
+        }
+        
+        .status-box.error {
+            border-color: #dc3545;
+        }
+        
+        .status-btn {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .status-btn:hover {
+            background: #218838;
+        }
 
         .generate-btn:disabled {
             background: #6c757d;
@@ -579,6 +610,14 @@
                 <button class="generate-btn" id="generateBtn" onclick="generatePDF()">
                     🎨 Gerar Cartas PDF
                 </button>
+                
+                <div id="systemStatus" class="status-box" style="display: none;">
+                    <h4>🔄 Status do Sistema</h4>
+                    <p id="statusMessage">Verificando...</p>
+                    <button id="checkStatusBtn" onclick="checkSystemStatus()" class="status-btn">
+                        🔄 Verificar Status
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -707,6 +746,45 @@
         function updatePlaceholders(columns) {
             // Não atualiza mais dinamicamente - usa apenas os placeholders fixos
             // [NUMERO] e [ICCID] já estão definidos no HTML
+        }
+        
+        function checkSystemStatus() {
+            const statusBox = document.getElementById('systemStatus');
+            const statusMessage = document.getElementById('statusMessage');
+            const checkBtn = document.getElementById('checkStatusBtn');
+            
+            checkBtn.disabled = true;
+            checkBtn.textContent = 'Verificando...';
+            
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    statusBox.style.display = 'block';
+                    statusBox.className = 'status-box ' + data.status;
+                    
+                    let message = data.message;
+                    if (data.status === 'ready') {
+                        message += `\n💾 Disco: ${data.disk_usage_mb}MB\n👥 Workers: ${data.workers}\n📦 Chunk: ${data.chunk_size}`;
+                    }
+                    
+                    statusMessage.textContent = message;
+                    checkBtn.disabled = false;
+                    checkBtn.textContent = '🔄 Verificar Status';
+                })
+                .catch(error => {
+                    statusBox.style.display = 'block';
+                    statusBox.className = 'status-box error';
+                    statusMessage.textContent = 'Erro ao verificar status: ' + error.message;
+                    checkBtn.disabled = false;
+                    checkBtn.textContent = '🔄 Verificar Status';
+                });
+        }
+        
+        // Verificar status automaticamente após completar geração
+        function checkStatusAfterCompletion() {
+            setTimeout(() => {
+                checkSystemStatus();
+            }, 2000); // Aguardar 2 segundos após completar
         }
 
         function showFileInfo(filename, recordCount) {
@@ -851,6 +929,8 @@
                         clearInterval(progressInterval);
                         if (data.status === 'completed') {
                             showDownloadButton(jobId);
+                            // Verificar status do sistema após completar
+                            checkStatusAfterCompletion();
                         }
                     }
                 })
