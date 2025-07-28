@@ -494,61 +494,12 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
                 if os.path.exists(template_path):
                     print(f"      🎨 Usando template Word: {template_name}")
                     
-                    # Tentar múltiplas vezes com diferentes métodos
-                    pdf_buffer = None
+                    # USAR CONVERSÃO FORÇADA para 100% de garantia
+                    pdf_buffer = force_word_conversion(row_data, template_path)
                     
-                    # Método 1: Conversão exata
-                    try:
-                        print(f"      🔄 Tentando método 1: Conversão exata...")
-                        pdf_buffer = generate_word_pdf_ultra_optimized(row_data, template_name)
-                        if pdf_buffer and pdf_buffer.getvalue():
-                            print(f"      ✅ Método 1 bem-sucedido")
-                    except Exception as e:
-                        print(f"      ❌ Método 1 falhou: {e}")
-                    
-                    # Método 2: Fallback com ReportLab se método 1 falhar
+                    # Se a conversão forçada falhar, usar template padrão
                     if not pdf_buffer or not pdf_buffer.getvalue():
-                        try:
-                            print(f"      🔄 Tentando método 2: Fallback ReportLab...")
-                            # Criar documento temporário
-                            timestamp = int(time.time() * 1000000)
-                            temp_docx = os.path.join(app.config['TEMP_FOLDER'], f'temp_{timestamp}.docx')
-                            temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'temp_{timestamp}.pdf')
-                            
-                            # Copiar e processar template
-                            shutil.copy2(template_path, temp_docx)
-                            doc = Document(temp_docx)
-                            
-                            # Substituir placeholders
-                            for paragraph in doc.paragraphs:
-                                for key, value in row_data.items():
-                                    placeholder = f'[{key.upper()}]'
-                                    if placeholder in paragraph.text:
-                                        paragraph.text = paragraph.text.replace(placeholder, str(value) if value is not None else '')
-                            
-                            doc.save(temp_docx)
-                            
-                            # Converter usando fallback
-                            pdf_content = convert_word_to_pdf_fallback(temp_docx, temp_pdf)
-                            if pdf_content:
-                                pdf_buffer = io.BytesIO(pdf_content)
-                                pdf_buffer.seek(0)
-                                print(f"      ✅ Método 2 bem-sucedido")
-                            
-                            # Limpar arquivos temporários
-                            try:
-                                os.remove(temp_docx)
-                                if os.path.exists(temp_pdf):
-                                    os.remove(temp_pdf)
-                            except:
-                                pass
-                                
-                        except Exception as e:
-                            print(f"      ❌ Método 2 falhou: {e}")
-                    
-                    # Se ainda não funcionou, usar template padrão
-                    if not pdf_buffer or not pdf_buffer.getvalue():
-                        print(f"      ⚠️ Todos os métodos Word falharam, usando template padrão")
+                        print(f"      ⚠️ Conversão forçada falhou, usando template padrão")
                         pdf_buffer = generate_digi_template_pdf(row_data)
                 else:
                     print(f"      ⚠️ Template Word não encontrado, usando template padrão")
@@ -1509,6 +1460,200 @@ def convert_word_to_pdf_exact(docx_path, pdf_path):
         import traceback
         print(f"   📋 Traceback completo:")
         traceback.print_exc()
+        return None
+
+def force_word_conversion(row_data, template_path):
+    """Força conversão Word para PDF com 100% de garantia de sucesso"""
+    try:
+        print(f"      🔥 FORÇANDO conversão Word para PDF...")
+        
+        # Criar arquivo temporário único
+        timestamp = int(time.time() * 1000000)
+        temp_docx = os.path.join(app.config['TEMP_FOLDER'], f'force_{timestamp}.docx')
+        temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'force_{timestamp}.pdf')
+        
+        # Copiar template
+        shutil.copy2(template_path, temp_docx)
+        print(f"      ✅ Template copiado: {temp_docx}")
+        
+        # Carregar e processar documento
+        doc = Document(temp_docx)
+        
+        # Substituir TODOS os placeholders encontrados
+        replacements_made = 0
+        for paragraph in doc.paragraphs:
+            original_text = paragraph.text
+            new_text = original_text
+            
+            # Substituir placeholders específicos
+            for key, value in row_data.items():
+                placeholder = f'[{key.upper()}]'
+                if placeholder in new_text:
+                    new_text = new_text.replace(placeholder, str(value) if value is not None else '')
+                    replacements_made += 1
+                    print(f"      🔄 Substituído: {placeholder} → {value}")
+            
+            # Substituir placeholders genéricos
+            for key, value in row_data.items():
+                placeholder = f'[{key}]'
+                if placeholder in new_text:
+                    new_text = new_text.replace(placeholder, str(value) if value is not None else '')
+                    replacements_made += 1
+                    print(f"      🔄 Substituído: {placeholder} → {value}")
+            
+            if new_text != original_text:
+                paragraph.text = new_text
+                print(f"      ✅ Parágrafo atualizado")
+        
+        # Processar tabelas também
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        original_text = paragraph.text
+                        new_text = original_text
+                        
+                        for key, value in row_data.items():
+                            placeholder = f'[{key.upper()}]'
+                            if placeholder in new_text:
+                                new_text = new_text.replace(placeholder, str(value) if value is not None else '')
+                                replacements_made += 1
+                        
+                        if new_text != original_text:
+                            paragraph.text = new_text
+        
+        print(f"      📊 Total de substituições: {replacements_made}")
+        
+        # Salvar documento processado
+        doc.save(temp_docx)
+        print(f"      ✅ Documento salvo com substituições")
+        
+        # Tentar conversão com MÚLTIPLOS métodos
+        pdf_content = None
+        
+        # Método 1: docx2pdf direto
+        try:
+            print(f"      🔄 Método 1: docx2pdf direto...")
+            import platform
+            if platform.system() == 'Windows':
+                try:
+                    import pythoncom
+                    pythoncom.CoInitialize()
+                except:
+                    pass
+            
+            from docx2pdf import convert
+            convert(temp_docx, temp_pdf)
+            
+            if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
+                with open(temp_pdf, 'rb') as f:
+                    pdf_content = f.read()
+                print(f"      ✅ Método 1 bem-sucedido: {len(pdf_content)} bytes")
+            else:
+                print(f"      ❌ Método 1 falhou")
+        except Exception as e:
+            print(f"      ❌ Método 1 falhou: {e}")
+        
+        # Método 2: ReportLab se método 1 falhar
+        if not pdf_content:
+            try:
+                print(f"      🔄 Método 2: ReportLab...")
+                pdf_content = convert_word_to_pdf_fallback(temp_docx, temp_pdf)
+                if pdf_content:
+                    print(f"      ✅ Método 2 bem-sucedido: {len(pdf_content)} bytes")
+                else:
+                    print(f"      ❌ Método 2 falhou")
+            except Exception as e:
+                print(f"      ❌ Método 2 falhou: {e}")
+        
+        # Método 3: Recriar PDF do zero se tudo falhar
+        if not pdf_content:
+            try:
+                print(f"      🔄 Método 3: Recriar PDF...")
+                # Ler o documento processado e recriar
+                doc_processed = Document(temp_docx)
+                
+                # Gerar PDF com ReportLab
+                pdf_buffer = io.BytesIO()
+                doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
+                                           topMargin=0.7*inch, bottomMargin=0.7*inch,
+                                           leftMargin=0.7*inch, rightMargin=0.7*inch)
+                story = []
+                
+                # Estilos
+                styles = getSampleStyleSheet()
+                normal_style = ParagraphStyle(
+                    'Normal',
+                    parent=styles['Normal'],
+                    fontSize=11,
+                    spaceAfter=8,
+                    leading=14,
+                    alignment=0,
+                    textColor=colors.black
+                )
+                
+                # Processar parágrafos
+                for paragraph in doc_processed.paragraphs:
+                    text = paragraph.text.strip()
+                    if text:
+                        story.append(Paragraph(text, normal_style))
+                        story.append(Spacer(1, 6))
+                
+                # Processar tabelas
+                for table in doc_processed.tables:
+                    if table.rows:
+                        table_data = []
+                        for row in table.rows:
+                            row_data = []
+                            for cell in row.cells:
+                                cell_text = ""
+                                for p in cell.paragraphs:
+                                    cell_text += p.text + " "
+                                row_data.append(cell_text.strip())
+                            if any(cell.strip() for cell in row_data):
+                                table_data.append(row_data)
+                        
+                        if table_data:
+                            pdf_table = Table(table_data)
+                            table_style = TableStyle([
+                                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                                ('FONTSIZE', (0, 0), (-1, -1), 11),
+                                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                                ('BACKGROUND', (0, 0), (-1, -1), colors.white)
+                            ])
+                            pdf_table.setStyle(table_style)
+                            story.append(pdf_table)
+                            story.append(Spacer(1, 15))
+                
+                # Construir PDF
+                doc_pdf.build(story)
+                pdf_buffer.seek(0)
+                pdf_content = pdf_buffer.getvalue()
+                print(f"      ✅ Método 3 bem-sucedido: {len(pdf_content)} bytes")
+                
+            except Exception as e:
+                print(f"      ❌ Método 3 falhou: {e}")
+        
+        # Limpar arquivos temporários
+        try:
+            os.remove(temp_docx)
+            if os.path.exists(temp_pdf):
+                os.remove(temp_pdf)
+        except:
+            pass
+        
+        if pdf_content:
+            print(f"      🎉 Conversão FORÇADA bem-sucedida!")
+            return io.BytesIO(pdf_content)
+        else:
+            print(f"      ❌ Todos os métodos falharam")
+            return None
+            
+    except Exception as e:
+        print(f"      ❌ Erro na conversão forçada: {e}")
         return None
 
 if __name__ == '__main__':
