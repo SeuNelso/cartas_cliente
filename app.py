@@ -42,14 +42,6 @@ except ImportError:
     DOCX_AVAILABLE = False
     print("⚠️ python-docx not available - using basic text conversion")
 
-# Adicionar import para weasyprint
-try:
-    from weasyprint import HTML, CSS
-    WEASYPRINT_AVAILABLE = True
-except ImportError:
-    WEASYPRINT_AVAILABLE = False
-    print("⚠️ WeasyPrint not available - using fallback HTML generation")
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'sua_chave_secreta_aqui'
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -849,17 +841,6 @@ def generate_word_pdf_ultra_optimized(row_data, template_name):
         print(f"      🎨 Iniciando geração Word PDF para template: {template_name}")
         print(f"      📊 Dados recebidos: {list(row_data.keys())}")
         
-        # Tentar usar template HTML DIGI primeiro
-        if WEASYPRINT_AVAILABLE:
-            print(f"      🎨 Tentando template HTML DIGI")
-            pdf_content = generate_digi_pdf_template(row_data, template_name)
-            if pdf_content:
-                print(f"      ✅ PDF gerado com template HTML")
-                return pdf_content
-        
-        # Fallback para template Word
-        print(f"      📄 Usando template Word como fallback")
-        
         # Verificar cache
         if template_name not in template_cache:
             prepare_template_cache(template_name)
@@ -1431,165 +1412,6 @@ def generate_simple_pdf_optimized(row_data, template_text):
     doc.build(story)
     pdf_buffer.seek(0)
     return pdf_buffer
-
-def create_html_template_digi(row_data):
-    """Cria template HTML exato baseado na imagem DIGI"""
-    
-    # Extrair dados
-    numero = row_data.get('NUMERO', '[NUMERO]')
-    iccid = row_data.get('ICCID', '[ICCID]')
-    
-    html_template = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body {{
-                font-family: Arial, sans-serif;
-                margin: 0;
-                padding: 40px;
-                line-height: 1.4;
-                color: #333;
-            }}
-            .logo {{
-                color: #0915FF;
-                font-size: 24px;
-                font-weight: bold;
-                margin-bottom: 30px;
-            }}
-            .welcome {{
-                font-weight: bold;
-                font-size: 16px;
-                margin-bottom: 15px;
-            }}
-            .normal-text {{
-                font-size: 12px;
-                margin-bottom: 12px;
-                text-align: justify;
-            }}
-            .data-table {{
-                width: 100%;
-                border-collapse: collapse;
-                margin: 20px 0;
-            }}
-            .data-table th {{
-                font-weight: bold;
-                text-decoration: underline;
-                padding: 8px;
-                text-align: left;
-                border-bottom: 1px solid #000;
-            }}
-            .data-table td {{
-                padding: 8px;
-                text-align: left;
-            }}
-            .contact {{
-                font-size: 12px;
-                margin: 15px 0;
-            }}
-            .footer {{
-                font-size: 10px;
-                color: #666;
-                margin-top: 30px;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="logo">DIGI</div>
-        
-        <div class="normal-text">Olá,</div>
-        
-        <div class="welcome">Bem-vindo/a à DIGI!</div>
-        
-        <div class="normal-text">
-            Estamos muito entusiasmados por ter-te connosco.
-        </div>
-        
-        <div class="normal-text">
-            Agora, já podes desfrutar das vantagens de ser DIGI, como ter sempre o nosso melhor preço ou receber uma fatura sem surpresas.
-        </div>
-        
-        <div class="normal-text">
-            Aqui, encontras o teu número de telemóvel e o código ICCID associado ao teu novo cartão SIM, para que possas identificá-lo facilmente caso tenhas contratado mais do que um número.
-        </div>
-        
-        <table class="data-table">
-            <tr>
-                <th>Número</th>
-                <th>Código ICCID cartão</th>
-            </tr>
-            <tr>
-                <td>{numero}</td>
-                <td>{iccid}</td>
-            </tr>
-        </table>
-        
-        <div class="contact">
-            Em caso de dúvida, não hesites em contactar-nos através do <strong>923 30 90 30</strong> (gratuito na rede DIGI e com custo de uma chamada normal para outros operadores). Estamos aqui para te ajudar.
-        </div>
-        
-        <div class="normal-text">Até breve,</div>
-        <div class="normal-text">A Equipa DIGI.</div>
-        
-        <div class="footer">
-            DIGI PORTUGAL, LDA. Matriculada na CRC sobo nº 516222201 - Capital Social 150.000.000,00€ Avenida José Malhoa nº11,3º Andar - 1070-157 Lisboa
-        </div>
-    </body>
-    </html>
-    """
-    
-    return html_template
-
-def convert_html_to_pdf_html(html_content, pdf_path):
-    """Converte HTML para PDF usando WeasyPrint"""
-    try:
-        if WEASYPRINT_AVAILABLE:
-            # Usar WeasyPrint para conversão de alta qualidade
-            HTML(string=html_content).write_pdf(pdf_path)
-            return True
-        else:
-            # Fallback para pdfkit se disponível
-            try:
-                import pdfkit
-                pdfkit.from_string(html_content, pdf_path)
-                return True
-            except ImportError:
-                print("⚠️ WeasyPrint e pdfkit não disponíveis")
-                return False
-    except Exception as e:
-        print(f"❌ Erro na conversão HTML para PDF: {e}")
-        return False
-
-def generate_digi_pdf_template(row_data, template_name):
-    """Gera PDF usando template HTML personalizado para DIGI"""
-    try:
-        print(f"   🎨 Gerando PDF com template HTML DIGI")
-        
-        # Criar template HTML
-        html_content = create_html_template_digi(row_data)
-        
-        # Criar arquivo temporário
-        temp_pdf = f"temp/digi_template_{uuid.uuid4()}.pdf"
-        
-        # Converter HTML para PDF
-        if convert_html_to_pdf_html(html_content, temp_pdf):
-            # Ler o PDF gerado
-            with open(temp_pdf, 'rb') as f:
-                pdf_content = f.read()
-            
-            # Limpar arquivo temporário
-            if os.path.exists(temp_pdf):
-                os.remove(temp_pdf)
-            
-            return pdf_content
-        else:
-            print(f"   ❌ Falha na conversão HTML para PDF")
-            return None
-            
-    except Exception as e:
-        print(f"   ❌ Erro no template HTML: {e}")
-        return None
 
 if __name__ == '__main__':
     # Configuração para produção (Render, Heroku, etc.)
