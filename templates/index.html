@@ -527,7 +527,7 @@
                     <div id="wordTemplateSection">
                         <div class="template-upload-section">
                             <h4>📄 Upload de Template Word</h4>
-                            <p class="description">Faça upload do seu arquivo .docx com placeholders [NOME], [CIDADE], etc.</p>
+                            <p class="description">Faça upload do seu arquivo .docx com placeholders [NUMERO] e [ICCID]</p>
                             
                             <input type="file" id="templateInput" class="file-input" accept=".docx">
                             <button class="upload-btn" onclick="document.getElementById('templateInput').click()">
@@ -548,27 +548,24 @@
 
                     <div id="textTemplateSection" style="display: none;">
                         <label>Template de Texto:</label>
-                        <textarea id="templateEditor" class="template-editor" placeholder="Digite seu template aqui...">[NOME]
-[CIDADE]
+                        <textarea id="templateEditor" class="template-editor" placeholder="Digite seu template aqui...">Prezado Cliente,
 
-[IDADE]
-[PROFISSAO]
-[SALARIO]
+Este é o seu número: [NUMERO]
+E o seu ICCID: [ICCID]
 
-Prezado Senhor / Senhora,
+Agradecemos sua preferência.
 
-Espero que esta carta o encontre bem. Eu queria escrever para você para [DEPARTAMENTO]. Eu sinto que é importante compartilhar meus pensamentos sobre este assunto.
-
-Com os melhores cumprimentos,
-[NOME]</textarea>
+Atenciosamente,
+Equipe de Atendimento</textarea>
                     </div>
                 </div>
 
                 <div class="placeholders-info">
-                    <h4>📋 Placeholders Disponíveis</h4>
-                    <p>Use os placeholders abaixo no seu template. Eles serão substituídos pelos dados do Excel:</p>
+                    <h4>📋 Seus Placeholders</h4>
+                    <p>Use estes placeholders no seu template:</p>
                     <div id="placeholdersList">
-                        <!-- Será preenchido dinamicamente -->
+                        <span class="placeholder-tag">[NUMERO]</span>
+                        <span class="placeholder-tag">[ICCID]</span>
                     </div>
                 </div>
 
@@ -577,7 +574,7 @@ Com os melhores cumprimentos,
                     <ul>
                         <li>Faça upload do seu arquivo Excel</li>
                         <li>Escolha entre template Word ou editor de texto</li>
-                        <li>Use placeholders [NOME], [CIDADE], etc. no template</li>
+                        <li>Use placeholders [NUMERO] e [ICCID] no template</li>
                         <li>Para cada linha do Excel, será gerado um PDF individual</li>
                         <li>Se houver múltiplas linhas, receberá um arquivo ZIP</li>
                         <li>Acompanhe o progresso em tempo real!</li>
@@ -713,10 +710,8 @@ Com os melhores cumprimentos,
         }
 
         function updatePlaceholders(columns) {
-            const placeholdersList = document.getElementById('placeholdersList');
-            placeholdersList.innerHTML = columns.map(col => 
-                `<span class="placeholder-tag">[${col.toUpperCase()}]</span>`
-            ).join('');
+            // Não atualiza mais dinamicamente - usa apenas os placeholders fixos
+            // [NUMERO] e [ICCID] já estão definidos no HTML
         }
 
         function showFileInfo(filename, recordCount) {

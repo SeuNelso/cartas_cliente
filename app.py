@@ -47,10 +47,11 @@ app.config['SECRET_KEY'] = 'sua_chave_secreta_aqui'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['TEMPLATES_FOLDER'] = 'templates_word'
 app.config['TEMP_FOLDER'] = 'temp'
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
-app.config['MAX_WORKERS'] = 4   # Reduzido para Railway
-app.config['CHUNK_SIZE'] = 3    # Chunks menores para estabilidade
-app.config['TIMEOUT_SECONDS'] = 0  # SEM TIMEOUT - processa até terminar
+# Configurações da aplicação
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
+app.config['TIMEOUT_SECONDS'] = 0  # Sem timeout
+app.config['MAX_WORKERS'] = 8  # Mais workers para Render
+app.config['CHUNK_SIZE'] = 5   # Chunks maiores para Render
 
 # Criar pastas necessárias
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -1379,16 +1380,18 @@ def generate_simple_pdf_optimized(row_data, template_text):
     return pdf_buffer
 
 if __name__ == '__main__':
-    print("🚀 Sistema de Geração de PDFs")
-    print("⚡ Workers: 4 (Otimizado para Vercel)")
-    print("📦 Chunk Size: 3 (Chunks menores para estabilidade)")
-    print("📦 Tamanho máximo de arquivo: 100MB")
-    print("⏱️ Timeout: NENHUM - processa até terminar")
-    print("🔥 Performance: SUPER ULTRA para qualquer quantidade")
-    print("🎯 Meta: Máxima velocidade sem limites")
-    
-    # Configuração para produção
+    # Configuração para produção (Render, Heroku, etc.)
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') == 'development'
     
-    app.run(debug=debug, host='0.0.0.0', port=port, threaded=True) 
+    print(f"🚀 Iniciando servidor na porta {port}")
+    print(f"🔧 Debug mode: {debug}")
+    print(f"👥 Max workers: {app.config['MAX_WORKERS']}")
+    print(f"📦 Chunk size: {app.config['CHUNK_SIZE']}")
+    
+    app.run(
+        host='0.0.0.0',  # Importante para Render/Heroku
+        port=port,
+        debug=debug,
+        threaded=True
+    ) 
