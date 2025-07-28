@@ -66,5 +66,4 @@ result_*
 # Deploy files (keep these)
 # vercel.json
 # Procfile
-# runtime.txt
-# railway.json 
+# runtime.txt 
