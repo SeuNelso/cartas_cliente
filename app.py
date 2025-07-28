@@ -1380,8 +1380,8 @@ def generate_simple_pdf_optimized(row_data, template_text):
 
 if __name__ == '__main__':
     print("🚀 Sistema de Geração de PDFs")
-    print("⚡ Workers: 16 (MÁXIMO ABSOLUTO)")
-    print("📦 Chunk Size: 5 (MÍNIMO)")
+    print("⚡ Workers: 4 (Otimizado para Vercel)")
+    print("📦 Chunk Size: 3 (Chunks menores para estabilidade)")
     print("📦 Tamanho máximo de arquivo: 100MB")
     print("⏱️ Timeout: NENHUM - processa até terminar")
     print("🔥 Performance: SUPER ULTRA para qualquer quantidade")
