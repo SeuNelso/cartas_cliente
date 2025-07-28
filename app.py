@@ -429,7 +429,13 @@ def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template,
         
         # Criar ZIP final
         print(f"   📦 Criando ZIP final...")
-        create_final_zip(pdf_files, temp_zip_path)
+        zip_created = create_final_zip(pdf_files, temp_zip_path)
+        
+        if not zip_created:
+            print(f"   ❌ Falha ao criar ZIP - nenhum arquivo adicionado")
+            progress_tracker[job_id]['status'] = 'error'
+            progress_tracker[job_id]['message'] = 'Erro: Nenhum PDF foi gerado com sucesso'
+            return
         
         # Limpar arquivos temporários
         cleanup_temp_files(pdf_files)
@@ -483,15 +489,31 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
                 f'temp_{job_id}_chunk_{chunk_id}_item_{i}_{int(time.time() * 1000)}.pdf'
             )
             
+            # Verificar se o buffer tem conteúdo
+            pdf_content = pdf_buffer.getvalue()
+            if not pdf_content:
+                print(f"      ❌ PDF buffer vazio para {nome}")
+                continue
+            
             with open(temp_pdf_path, 'wb') as f:
-                f.write(pdf_buffer.getvalue())
+                f.write(pdf_content)
+            
+            # Verificar se o arquivo foi criado
+            if not os.path.exists(temp_pdf_path):
+                print(f"      ❌ Arquivo PDF não foi criado: {temp_pdf_path}")
+                continue
+            
+            file_size = os.path.getsize(temp_pdf_path)
+            if file_size == 0:
+                print(f"      ❌ Arquivo PDF vazio: {temp_pdf_path}")
+                continue
             
             # Nome do arquivo baseado no número
             numero = row_data.get('NUMERO', f'{i+1:03d}')
             filename = f'Carta_{numero}.pdf'
             
             pdf_files.append((temp_pdf_path, filename))
-            print(f"      ✅ PDF gerado: {filename}")
+            print(f"      ✅ PDF gerado: {filename} ({file_size} bytes)")
             
         except Exception as e:
             print(f"      ❌ Erro ao gerar PDF para {row_data.get('NOME', 'registro')}: {e}")
@@ -503,10 +525,35 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
 
 def create_final_zip(pdf_files, zip_path):
     """Cria o ZIP final com todos os PDFs"""
+    print(f"📦 Criando ZIP final: {len(pdf_files)} arquivos")
+    
+    if not pdf_files:
+        print(f"   ❌ Nenhum arquivo PDF para adicionar ao ZIP")
+        return False
+    
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        added_files = 0
         for pdf_path, filename in pdf_files:
+            print(f"   📄 Verificando: {pdf_path}")
             if os.path.exists(pdf_path):
+                file_size = os.path.getsize(pdf_path)
+                print(f"      ✅ Adicionando: {filename} ({file_size} bytes)")
                 zip_file.write(pdf_path, filename)
+                added_files += 1
+            else:
+                print(f"      ❌ Arquivo não encontrado: {pdf_path}")
+        
+        print(f"   ✅ ZIP criado com {added_files} arquivos")
+        print(f"   📁 Caminho do ZIP: {zip_path}")
+        
+        # Verificar tamanho do ZIP
+        if os.path.exists(zip_path):
+            zip_size = os.path.getsize(zip_path)
+            print(f"   📊 Tamanho do ZIP: {zip_size} bytes")
+            return added_files > 0
+        else:
+            print(f"   ❌ ZIP não foi criado")
+            return False
 
 def cleanup_temp_files(pdf_files):
     """Remove arquivos temporários"""
@@ -584,6 +631,9 @@ def generate_simple_pdf(row_data, template_text):
 def generate_word_pdf_ultra_optimized(row_data, template_name):
     """Gera PDF a partir de template Word preservando formatação exata"""
     try:
+        print(f"      🎨 Iniciando geração Word PDF para template: {template_name}")
+        print(f"      📊 Dados recebidos: {list(row_data.keys())}")
+        
         # Verificar cache
         if template_name not in template_cache:
             prepare_template_cache(template_name)
@@ -591,13 +641,20 @@ def generate_word_pdf_ultra_optimized(row_data, template_name):
         template_info = template_cache[template_name]
         template_path = template_info['path']
         
+        print(f"      📁 Template path: {template_path}")
+        print(f"      ✅ Template existe: {os.path.exists(template_path)}")
+        
         # Criar documento temporário com nome único
         timestamp = int(time.time() * 1000000)  # Microsegundos para garantir unicidade
         temp_docx = os.path.join(app.config['TEMP_FOLDER'], f'temp_{timestamp}.docx')
         temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'temp_{timestamp}.pdf')
         
+        print(f"      📄 Temp DOCX: {temp_docx}")
+        print(f"      📄 Temp PDF: {temp_pdf}")
+        
         # Copiar template
         shutil.copy2(template_path, temp_docx)
+        print(f"      ✅ Template copiado para: {temp_docx}")
         
         # Carregar documento e substituir placeholders preservando formatação
         doc = Document(temp_docx)
@@ -992,10 +1049,11 @@ def generate_word_pdf_ultra_optimized(row_data, template_name):
         if pdf_content is not None:
             pdf_buffer = io.BytesIO(pdf_content)
             pdf_buffer.seek(0)
+            print(f"      ✅ PDF gerado com sucesso: {len(pdf_content)} bytes")
             return pdf_buffer
         else:
             # Fallback para método simples se conversão falhar
-            print(f"Conversão Word falhou para {row_data.get('NOME', 'registro')}, usando ReportLab")
+            print(f"      ❌ Conversão Word falhou para {row_data.get('NOME', 'registro')}, usando ReportLab")
             return generate_simple_pdf_optimized(row_data, DEFAULT_TEMPLATE)
         
     except Exception as e:
