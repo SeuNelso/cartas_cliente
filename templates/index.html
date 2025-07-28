@@ -548,6 +548,12 @@
                             </label>
                         </div>
                         <div class="template-option">
+                            <label>
+                                <input type="radio" name="templateType" value="svg" onchange="toggleTemplateType()">
+                                Usar Template SVG (.svg) - Formatação Perfeita
+                            </label>
+                        </div>
+                        <div class="template-option">
                             <label style="color: #999;">
                                 <input type="radio" name="templateType" value="text" onchange="toggleTemplateType()" disabled>
                                 Usar Editor de Texto (Desabilitado)
@@ -574,6 +580,40 @@
                                 <option value="{{ template }}">{{ template }}</option>
                                 {% endfor %}
                             </select>
+                        </div>
+                    </div>
+
+                    <div id="svgTemplateSection" style="display: none;">
+                        <div class="template-upload-section">
+                            <h4>🎨 Upload de Template SVG</h4>
+                            <p class="description">Faça upload do seu arquivo .svg com placeholders [NUMERO] e [ICCID]</p>
+                            <p class="description"><strong>Vantagem:</strong> Formatação 100% idêntica em qualquer sistema!</p>
+                            
+                            <input type="file" id="svgTemplateInput" class="file-input" accept=".svg">
+                            <button class="upload-btn" onclick="document.getElementById('svgTemplateInput').click()">
+                                Selecionar Template SVG
+                            </button>
+                        </div>
+
+                        <div class="template-option">
+                            <label>Template SVG Selecionado:</label>
+                            <select id="svgTemplateSelect" class="template-select">
+                                <option value="">Selecione um template SVG...</option>
+                                {% for template in svg_templates %}
+                                <option value="{{ template }}">{{ template }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="info-box">
+                            <h4>🎨 Vantagens do SVG</h4>
+                            <ul>
+                                <li>✅ Formatação perfeita e consistente</li>
+                                <li>✅ Funciona em Linux e Windows</li>
+                                <li>✅ Sem dependências do Office</li>
+                                <li>✅ Mais rápido e leve</li>
+                                <li>✅ Controle total sobre design</li>
+                            </ul>
                         </div>
                     </div>
 
@@ -632,6 +672,7 @@
         const uploadSection = document.getElementById('uploadSection');
         const fileInput = document.getElementById('fileInput');
         const templateInput = document.getElementById('templateInput');
+        const svgTemplateInput = document.getElementById('svgTemplateInput'); // Adicionado para SVG
 
         uploadSection.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -663,23 +704,36 @@
             }
         });
 
+        svgTemplateInput.addEventListener('change', (e) => { // Adicionado para SVG
+            if (e.target.files.length > 0) {
+                handleTemplateUpload(e.target.files[0]);
+            }
+        });
+
         function toggleTemplateType() {
             const wordSection = document.getElementById('wordTemplateSection');
+            const svgSection = document.getElementById('svgTemplateSection'); // Adicionado para SVG
             const textSection = document.getElementById('textTemplateSection');
             const templateType = document.querySelector('input[name="templateType"]:checked').value;
             
             if (templateType === 'word') {
                 wordSection.style.display = 'block';
+                svgSection.style.display = 'none'; // Esconder SVG
                 textSection.style.display = 'none';
-            } else {
+            } else if (templateType === 'svg') {
                 wordSection.style.display = 'none';
+                svgSection.style.display = 'block';
+                textSection.style.display = 'none';
+            } else { // text
+                wordSection.style.display = 'none';
+                svgSection.style.display = 'none';
                 textSection.style.display = 'block';
             }
         }
 
         function handleTemplateUpload(file) {
-            if (!file.name.match(/\.docx$/)) {
-                showError('Por favor, selecione um arquivo Word (.docx)');
+            if (!file.name.match(/\.docx$/) && !file.name.match(/\.svg$/)) { // Adicionado para SVG
+                showError('Por favor, selecione um arquivo Word (.docx) ou SVG (.svg)');
                 return;
             }
 
@@ -846,7 +900,20 @@
                 }
                 useWordTemplate = true;
                 console.log('   ✅ Template Word selecionado:', templateName);
-            } else {
+            } else if (templateType === 'svg') {
+                templateName = document.getElementById('svgTemplateSelect').value;
+                console.log('   Template Name:', templateName);
+                console.log('   SVG Template Select Element:', document.getElementById('svgTemplateSelect'));
+                console.log('   Available SVG Options:', Array.from(document.getElementById('svgTemplateSelect').options).map(opt => opt.value));
+                
+                if (!templateName) {
+                    showError('Por favor, selecione um template SVG');
+                    console.log('   ❌ Template SVG não selecionado');
+                    return;
+                }
+                useWordTemplate = false; // SVG não é um template Word, mas pode ser usado como base
+                console.log('   ✅ Template SVG selecionado:', templateName);
+            } else { // text
                 const templateText = document.getElementById('templateEditor').value;
                 console.log('   Template Text Length:', templateText.length);
                 

@@ -148,14 +148,28 @@ def system_status():
 
 @app.route('/')
 def index():
-    # Listar templates disponíveis
-    templates = []
-    if os.path.exists(app.config['TEMPLATES_FOLDER']):
-        for file in os.listdir(app.config['TEMPLATES_FOLDER']):
-            if file.endswith('.docx'):
-                templates.append(file)
-    
-    return render_template('index.html', templates=templates)
+    """Página principal do sistema"""
+    try:
+        # Listar templates Word disponíveis
+        templates_folder = app.config['TEMPLATES_FOLDER']
+        templates = []
+        svg_templates = []
+        
+        if os.path.exists(templates_folder):
+            for file in os.listdir(templates_folder):
+                if file.endswith('.docx'):
+                    templates.append(file)
+                elif file.endswith('.svg'):
+                    svg_templates.append(file)
+        
+        # Ordenar templates
+        templates.sort()
+        svg_templates.sort()
+        
+        return render_template('index.html', templates=templates, svg_templates=svg_templates)
+    except Exception as e:
+        print(f"Erro ao carregar página principal: {e}")
+        return render_template('index.html', templates=[], svg_templates=[])
 
 @app.route('/api/upload-template', methods=['POST'])
 def upload_template():
@@ -217,94 +231,104 @@ def upload_file():
 
 @app.route('/api/generate-pdf', methods=['POST'])
 def generate_pdf():
+    """Gerar PDFs a partir dos dados do Excel"""
     try:
-        data = request.json
-        excel_data = data.get('data', [])
+        data = request.get_json()
+        
+        if not data or 'data' not in data:
+            return jsonify({'success': False, 'error': 'Dados não fornecidos'})
+        
+        excel_data = data['data']
         template_name = data.get('template', '')
         use_word_template = data.get('useWordTemplate', False)
         
-        print(f"🔍 DEBUG: Recebido request de geração")
-        print(f"   Template Name: '{template_name}'")
+        print(f"📊 Gerando PDFs para {len(excel_data)} registros")
+        print(f"   Template: {template_name}")
         print(f"   Use Word Template: {use_word_template}")
-        print(f"   Excel Data: {len(excel_data)} registros")
-        print(f"   Request Data: {data}")
         
         if not excel_data:
-            print("   ❌ Nenhum dado fornecido")
-            return jsonify({'error': 'Nenhum dado fornecido'}), 400
+            return jsonify({'success': False, 'error': 'Nenhum dado para processar'})
         
-        # Se apenas uma linha, gerar PDF único
+        # Se apenas um registro, gerar PDF único
         if len(excel_data) == 1:
-            print(f"   📄 Gerando PDF único")
+            row_data = excel_data[0]
+            pdf_buffer = None
             
-            # Verificar se há template Word disponível
-            if use_word_template and template_name:
+            # Tentar SVG primeiro se disponível
+            if template_name and template_name.endswith('.svg'):
+                svg_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
+                if os.path.exists(svg_path):
+                    print(f"   🎨 Usando template SVG: {template_name}")
+                    pdf_buffer = convert_svg_template(row_data, svg_path)
+                    if pdf_buffer:
+                        return send_file(
+                            pdf_buffer,
+                            mimetype='application/pdf',
+                            as_attachment=True,
+                            download_name=f'carta_{row_data.get("NUMERO", "1")}.pdf'
+                        )
+            
+            # Tentar Word template
+            if not pdf_buffer and use_word_template and template_name:
                 template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
                 if os.path.exists(template_path):
-                    print(f"   🎨 Usando template Word: {template_name}")
-                    pdf_buffer = generate_word_pdf_ultra_optimized(excel_data[0], template_name)
-                else:
-                    print(f"   ⚠️ Template Word não encontrado, usando template padrão")
-                    pdf_buffer = generate_digi_template_pdf(excel_data[0])
-            else:
+                    print(f"   📄 Usando template Word: {template_name}")
+                    pdf_buffer = convert_word_exact(row_data, template_path)
+            
+            # Fallback para template padrão
+            if not pdf_buffer:
                 print(f"   📄 Usando template padrão DIGI")
-                pdf_buffer = generate_digi_template_pdf(excel_data[0])
+                pdf_buffer = generate_digi_template_pdf(row_data)
             
-            if pdf_buffer is None:
-                return jsonify({'error': 'Erro ao gerar PDF'}), 500
+            if pdf_buffer:
+                return send_file(
+                    pdf_buffer,
+                    mimetype='application/pdf',
+                    as_attachment=True,
+                    download_name=f'carta_{row_data.get("NUMERO", "1")}.pdf'
+                )
+            else:
+                return jsonify({'success': False, 'error': 'Erro ao gerar PDF'})
+        
+        # Múltiplos registros - usar processamento em chunks
+        else:
+            # Determinar tipo de template
+            template_type = "word"
+            if template_name and template_name.endswith('.svg'):
+                template_type = "svg"
             
-            # Nome do arquivo baseado no número
-            numero = excel_data[0].get('NUMERO', '001')
-            filename = f'Carta_{numero}.pdf'
+            job_id = str(uuid.uuid4())
+            job_data = {
+                'data': excel_data,
+                'template_name': template_name,
+                'use_word_template': use_word_template,
+                'template_type': template_type,
+                'total': len(excel_data),
+                'current': 0,
+                'status': 'processing',
+                'start_time': time.time(),
+                'results': []
+            }
             
-            return send_file(
-                pdf_buffer,
-                as_attachment=True,
-                download_name=filename,
-                mimetype='application/pdf'
+            jobs[job_id] = job_data
+            
+            # Iniciar processamento em background
+            thread = threading.Thread(
+                target=process_data_in_chunks,
+                args=(job_id, excel_data, template_name, use_word_template, template_type)
             )
-        
-        # Se múltiplas linhas, iniciar processo assíncrono otimizado
-        print(f"   📦 Gerando múltiplos PDFs")
-        print(f"   🎯 Template configurado: {template_name if template_name else 'DEFAULT'}")
-        print(f"   🎨 Usar Word: {use_word_template}")
-        
-        job_id = str(uuid.uuid4())
-        start_time = time.time()
-        
-        # Determinar template a usar
-        template_to_use = template_name if template_name else "Template padrão DIGI"
-        
-        progress_tracker[job_id] = {
-            'total': len(excel_data),
-            'current': 0,
-            'status': 'processing',
-            'message': f'Iniciando geração otimizada de PDFs usando template "{template_to_use}"...',
-            'start_time': start_time,
-            'estimated_time_remaining': None,
-            'elapsed_time': 0
-        }
-        
-        job_start_times[job_id] = start_time
-        current_jobs.add(job_id)
-        
-        # Iniciar geração em background com processamento paralelo
-        thread = threading.Thread(
-            target=generate_multiple_pdfs_parallel,
-            args=(excel_data, template_name, use_word_template, job_id)
-        )
-        thread.daemon = True
-        thread.start()
-        
-        return jsonify({
-            'success': True,
-            'job_id': job_id,
-            'total': len(excel_data),
-            'message': 'Geração otimizada iniciada. Use o job_id para acompanhar o progresso.'
-        })
-        
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({
+                'success': True,
+                'job_id': job_id,
+                'total': len(excel_data)
+            })
+            
     except Exception as e:
-        return jsonify({'error': f'Erro ao gerar PDF: {str(e)}'}), 500
+        print(f"❌ Erro ao gerar PDF: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/progress/<job_id>')
 def get_progress(job_id):
@@ -2089,6 +2113,119 @@ def convert_svg_template(row_data, svg_path):
             
     except Exception as e:
         print(f"      ❌ Erro na conversão SVG: {e}")
+        return None
+
+def process_data_in_chunks(job_id, data, template_name, use_word_template, template_type):
+    """Processar dados em chunks com suporte a SVG e Word"""
+    try:
+        print(f"🚀 Iniciando processamento em chunks para job {job_id}")
+        print(f"   Template: {template_name}")
+        print(f"   Tipo: {template_type}")
+        print(f"   Total: {len(data)} registros")
+        
+        # Configurar chunks
+        chunk_size = 10
+        chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+        
+        job_data = jobs[job_id]
+        job_data['chunks'] = len(chunks)
+        job_data['current_chunk'] = 0
+        
+        for chunk_id, chunk in enumerate(chunks):
+            print(f"   📦 Processando chunk {chunk_id + 1}/{len(chunks)}")
+            job_data['current_chunk'] = chunk_id + 1
+            
+            # Processar chunk com suporte a SVG
+            if template_type == "svg" and template_name:
+                svg_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
+                if os.path.exists(svg_path):
+                    process_chunk_svg(chunk, template_name, job_id, chunk_id, svg_path)
+                else:
+                    print(f"   ⚠️ Template SVG não encontrado, usando fallback")
+                    process_chunk_optimized(chunk, template_name, use_word_template, job_id, chunk_id)
+            else:
+                process_chunk_optimized(chunk, template_name, use_word_template, job_id, chunk_id)
+            
+            # Atualizar progresso
+            job_data['current'] = min((chunk_id + 1) * chunk_size, len(data))
+            job_data['message'] = f'Processando chunk {chunk_id + 1}/{len(chunks)}'
+        
+        # Finalizar job
+        job_data['status'] = 'completed'
+        job_data['message'] = f'Geração concluída! {len(data)} PDFs criados.'
+        print(f"   ✅ Job {job_id} concluído")
+        
+    except Exception as e:
+        print(f"   ❌ Erro no processamento: {e}")
+        if job_id in jobs:
+            jobs[job_id]['status'] = 'error'
+            jobs[job_id]['message'] = f'Erro: {str(e)}'
+
+def process_chunk_svg(chunk, template_name, job_id, chunk_id, svg_path):
+    """Processar chunk usando template SVG"""
+    try:
+        print(f"      🎨 Processando chunk SVG {chunk_id + 1}")
+        print(f"      📁 Template: {template_name}")
+        
+        # Criar pasta para resultados
+        results_folder = os.path.join(app.config['UPLOADS_FOLDER'], f'job_{job_id}')
+        os.makedirs(results_folder, exist_ok=True)
+        
+        # Processar cada registro do chunk
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = []
+            
+            for i, row_data in enumerate(chunk):
+                numero = row_data.get('NUMERO', f'chunk_{chunk_id}_item_{i}')
+                print(f"      📄 Processando {numero}")
+                
+                future = executor.submit(
+                    process_single_svg,
+                    row_data,
+                    svg_path,
+                    results_folder,
+                    numero
+                )
+                futures.append(future)
+            
+            # Aguardar conclusão
+            for future in futures:
+                try:
+                    result = future.result(timeout=30)
+                    if result:
+                        print(f"      ✅ PDF gerado: {result}")
+                except Exception as e:
+                    print(f"      ❌ Erro ao gerar PDF: {e}")
+        
+        print(f"      ✅ Chunk SVG {chunk_id + 1} concluído")
+        
+    except Exception as e:
+        print(f"      ❌ Erro no chunk SVG {chunk_id + 1}: {e}")
+
+def process_single_svg(row_data, svg_path, results_folder, numero):
+    """Processar um único registro usando SVG"""
+    try:
+        print(f"         🎨 Convertendo SVG para {numero}")
+        
+        # Converter SVG para PDF
+        pdf_buffer = convert_svg_template(row_data, svg_path)
+        
+        if pdf_buffer and pdf_buffer.getvalue():
+            # Salvar PDF
+            pdf_filename = f'carta_{numero}.pdf'
+            pdf_path = os.path.join(results_folder, pdf_filename)
+            
+            with open(pdf_path, 'wb') as f:
+                f.write(pdf_buffer.getvalue())
+            
+            print(f"         ✅ PDF salvo: {pdf_filename}")
+            return pdf_filename
+        else:
+            print(f"         ❌ Falha na conversão SVG para {numero}")
+            return None
+            
+    except Exception as e:
+        print(f"         ❌ Erro ao processar SVG {numero}: {e}")
         return None
 
 if __name__ == '__main__':
