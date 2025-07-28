@@ -1113,54 +1113,49 @@ def convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path):
             pass
 
 def convert_word_to_pdf_fallback(docx_path, pdf_path):
-    """Fallback robusto para conversão Word para PDF usando apenas ReportLab"""
+    """Converte Word para PDF usando docx2pdf ou ReportLab como fallback"""
     try:
-        print(f"   📄 Usando conversão ReportLab robusta")
+        print(f"   📄 Tentando conversão Word para PDF")
         
-        # Ler o documento Word
+        # Método 1: Tentar docx2pdf primeiro
+        try:
+            print(f"   📄 Tentando docx2pdf...")
+            convert(docx_path, pdf_path)
+            if os.path.exists(pdf_path):
+                with open(pdf_path, 'rb') as f:
+                    pdf_content = f.read()
+                if len(pdf_content) > 0:
+                    print(f"   ✅ Conversão docx2pdf bem-sucedida: {len(pdf_content)} bytes")
+                    return pdf_content
+                else:
+                    print(f"   ❌ PDF criado mas está vazio")
+            else:
+                print(f"   ❌ PDF não foi criado")
+        except Exception as e:
+            print(f"   ❌ docx2pdf falhou: {e}")
+        
+        # Método 2: Usar ReportLab para ler o Word e recriar
+        print(f"   📄 Usando ReportLab como fallback...")
         doc = Document(docx_path)
         
-        # Gerar PDF com formatação exata da DIGI
+        # Gerar PDF com formatação preservada
         pdf_buffer = io.BytesIO()
         doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
                                    topMargin=0.7*inch, bottomMargin=0.7*inch,
                                    leftMargin=0.7*inch, rightMargin=0.7*inch)
         story = []
         
-        # Estilos otimizados para DIGI
+        # Estilos otimizados
         styles = getSampleStyleSheet()
         
-        # Estilo para logo DIGI (azul, centralizado, grande)
-        digi_logo_style = ParagraphStyle(
-            'DigiLogo',
+        # Estilo para logo/título
+        title_style = ParagraphStyle(
+            'Title',
             parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30,
+            fontSize=20,
+            spaceAfter=20,
             alignment=1,  # Centralizado
             textColor=colors.HexColor('#0915FF'),
-            fontName='Helvetica-Bold'
-        )
-        
-        # Estilo para saudação
-        greeting_style = ParagraphStyle(
-            'Greeting',
-            parent=styles['Normal'],
-            fontSize=12,
-            spaceAfter=8,
-            leading=16,
-            alignment=0,  # Esquerda
-            textColor=colors.black
-        )
-        
-        # Estilo para título de boas-vindas
-        welcome_style = ParagraphStyle(
-            'Welcome',
-            parent=styles['Heading2'],
-            fontSize=14,
-            spaceAfter=12,
-            leading=18,
-            alignment=0,  # Esquerda
-            textColor=colors.black,
             fontName='Helvetica-Bold'
         )
         
@@ -1175,7 +1170,7 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
             textColor=colors.black
         )
         
-        # Estilo para dados importantes (número, ICCID)
+        # Estilo para dados importantes
         data_style = ParagraphStyle(
             'Data',
             parent=styles['Normal'],
@@ -1187,94 +1182,29 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
             fontName='Helvetica-Bold'
         )
         
-        # Estilo para contato
-        contact_style = ParagraphStyle(
-            'Contact',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=10,
-            leading=14,
-            alignment=0,  # Esquerda
-            textColor=colors.black
-        )
-        
-        # Estilo para fechamento
-        closing_style = ParagraphStyle(
-            'Closing',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=15,
-            leading=14,
-            alignment=0,  # Esquerda
-            textColor=colors.black
-        )
-        
-        # Estilo para rodapé legal
-        footer_style = ParagraphStyle(
-            'Footer',
-            parent=styles['Normal'],
-            fontSize=9,
-            spaceAfter=6,
-            leading=12,
-            alignment=0,  # Esquerda
-            textColor=colors.grey
-        )
-        
-        # Processar parágrafos de forma inteligente
+        # Processar parágrafos do documento Word
         for paragraph in doc.paragraphs:
             text = paragraph.text.strip()
             if not text:
                 continue
                 
-            # Detectar tipo de conteúdo baseado no texto
+            # Detectar tipo de conteúdo
             text_lower = text.lower()
             
             if 'digi' in text_lower and len(text.strip()) <= 10:
                 # Logo DIGI
-                story.append(Paragraph(text, digi_logo_style))
+                story.append(Paragraph(text, title_style))
                 story.append(Spacer(1, 20))
-                
-            elif 'olá' in text_lower or 'ola' in text_lower:
-                # Saudação
-                story.append(Paragraph(text, greeting_style))
-                story.append(Spacer(1, 8))
-                
-            elif 'bem-vindo' in text_lower or 'bem-vinda' in text_lower:
-                # Título de boas-vindas
-                story.append(Paragraph(text, welcome_style))
-                story.append(Spacer(1, 12))
-                
-            elif any(keyword in text_lower for keyword in ['entusiasmados', 'vantagens', 'preço', 'fatura']):
-                # Texto explicativo
-                story.append(Paragraph(text, normal_style))
-                story.append(Spacer(1, 8))
-                
             elif any(keyword in text_lower for keyword in ['número', 'iccid', 'cartão', 'sim']):
-                # Texto sobre dados
-                story.append(Paragraph(text, normal_style))
+                # Dados importantes
+                story.append(Paragraph(text, data_style))
                 story.append(Spacer(1, 8))
-                
-            elif any(keyword in text_lower for keyword in ['923', 'contactar', 'dúvida', 'gratuito']):
-                # Informações de contato
-                story.append(Paragraph(text, contact_style))
-                story.append(Spacer(1, 10))
-                
-            elif any(keyword in text_lower for keyword in ['até breve', 'equipa digi', 'equipe digi']):
-                # Fechamento
-                story.append(Paragraph(text, closing_style))
-                story.append(Spacer(1, 15))
-                
-            elif any(keyword in text_lower for keyword in ['matriculada', 'capital social', 'avenida', 'lisboa']):
-                # Rodapé legal
-                story.append(Paragraph(text, footer_style))
-                story.append(Spacer(1, 6))
-                
             else:
                 # Texto normal
                 story.append(Paragraph(text, normal_style))
                 story.append(Spacer(1, 6))
         
-        # Processar tabelas de forma otimizada
+        # Processar tabelas
         for table in doc.tables:
             if table.rows:
                 table_data = []
@@ -1282,38 +1212,30 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                 for row in table.rows:
                     row_data = []
                     for cell in row.cells:
-                        # Extrair texto da célula
                         cell_text = ""
                         for paragraph in cell.paragraphs:
                             cell_text += paragraph.text + " "
                         row_data.append(cell_text.strip())
                     
-                    if any(cell.strip() for cell in row_data):  # Só adicionar se não estiver vazio
+                    if any(cell.strip() for cell in row_data):
                         table_data.append(row_data)
                 
                 if table_data:
-                    # Criar tabela no PDF
                     pdf_table = Table(table_data)
-                    
-                    # Estilo da tabela DIGI (cabeçalho sublinhado, sem bordas internas)
                     table_style = TableStyle([
-                        # Cabeçalho - negrito e sublinhado
                         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                         ('FONTSIZE', (0, 0), (-1, 0), 11),
                         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
                         ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
                         ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
                         ('TOPPADDING', (0, 0), (-1, 0), 8),
-                        # Linha separadora do cabeçalho
                         ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
-                        # Corpo da tabela
                         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
                         ('FONTSIZE', (0, 1), (-1, -1), 11),
                         ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
                         ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
                         ('TOPPADDING', (0, 1), (-1, -1), 6),
                         ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-                        # Sem bordas internas
                         ('BACKGROUND', (0, 0), (-1, -1), colors.white)
                     ])
                     
@@ -1329,15 +1251,15 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
         with open(pdf_path, 'wb') as f:
             f.write(pdf_buffer.getvalue())
         
-        # Ler o PDF gerado e retornar o conteúdo
+        # Ler o PDF gerado
         with open(pdf_path, 'rb') as f:
             pdf_content = f.read()
         
-        print(f"   ✅ PDF gerado com sucesso: {pdf_path} ({len(pdf_content)} bytes)")
+        print(f"   ✅ PDF gerado com ReportLab: {len(pdf_content)} bytes")
         return pdf_content
         
     except Exception as e:
-        print(f"   ❌ Erro no fallback ReportLab: {str(e)}")
+        print(f"   ❌ Erro na conversão Word para PDF: {e}")
         return None
 
 def convert_word_to_pdf_com_robust(docx_path, pdf_path):
