@@ -907,8 +907,8 @@ def generate_word_pdf_ultra_optimized(row_data, template_name):
         replace_placeholders_simple()
         doc.save(temp_docx)
         print(f"      ✅ Documento salvo com placeholders substituídos")
-        print(f"      🔄 Convertendo para PDF usando método robusto...")
-        pdf_content = convert_word_to_pdf_fallback(temp_docx, temp_pdf)
+        print(f"      🔄 Convertendo para PDF preservando formatação exata...")
+        pdf_content = convert_word_to_pdf_exact(temp_docx, temp_pdf)
         try:
             os.remove(temp_docx)
             if os.path.exists(temp_pdf):
@@ -1334,6 +1334,33 @@ def generate_simple_pdf_optimized(row_data, template_text):
     doc.build(story)
     pdf_buffer.seek(0)
     return pdf_buffer
+
+def convert_word_to_pdf_exact(docx_path, pdf_path):
+    """Converte Word para PDF preservando formatação EXATA usando apenas docx2pdf"""
+    try:
+        print(f"   📄 Convertendo Word para PDF com formatação exata...")
+        
+        # Usar apenas docx2pdf para preservar formatação original
+        convert(docx_path, pdf_path)
+        
+        # Verificar se o PDF foi criado
+        if os.path.exists(pdf_path):
+            with open(pdf_path, 'rb') as f:
+                pdf_content = f.read()
+            
+            if len(pdf_content) > 0:
+                print(f"   ✅ Conversão bem-sucedida: {len(pdf_content)} bytes")
+                return pdf_content
+            else:
+                print(f"   ❌ PDF criado mas está vazio")
+                return None
+        else:
+            print(f"   ❌ PDF não foi criado")
+            return None
+            
+    except Exception as e:
+        print(f"   ❌ Erro na conversão: {e}")
+        return None
 
 if __name__ == '__main__':
     # Configuração para produção (Render, Heroku, etc.)
