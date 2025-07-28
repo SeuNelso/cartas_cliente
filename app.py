@@ -1342,15 +1342,18 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                     
                     # Aplicar formatação baseada no conteúdo e estilo
                     if 'digi' in text.lower() and len(text.strip()) <= 10:
-                        # Logo DIGI
-                        paragraph_content.append(f'<font color="#0915FF" size="16"><b>{text}</b></font>')
+                        # Logo DIGI - azul, negrito, tamanho maior
+                        paragraph_content.append(f'<font color="#0915FF" size="18"><b>{text}</b></font>')
+                    elif 'bem-vindo' in text.lower() or 'bem-vinda' in text.lower():
+                        # Título de boas-vindas
+                        paragraph_content.append(f'<b>{text}</b>')
+                    elif any(keyword in text.lower() for keyword in ['número', 'iccid', 'numéro', 'número', 'código']):
+                        # Dados importantes em negrito
+                        paragraph_content.append(f'<b>{text}</b>')
                     elif font_color and font_color != "#000000":
                         # Texto com cor personalizada
                         size_attr = f' size="{font_size}"' if font_size else ""
                         paragraph_content.append(f'<font color="{font_color}"{size_attr}>{text}</font>')
-                    elif is_bold and any(keyword in text.lower() for keyword in ['número', 'iccid', 'numéro', 'número']):
-                        # Dados importantes em negrito
-                        paragraph_content.append(f'<b>{text}</b>')
                     elif is_bold:
                         # Texto em negrito
                         paragraph_content.append(f'<b>{text}</b>')
@@ -1369,17 +1372,40 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                 
                 # Determinar estilo baseado no conteúdo e alinhamento
                 if 'digi' in full_text.lower() and len(full_text.strip()) <= 10:
-                    # Logo centralizado
+                    # Logo DIGI - centralizado, azul, maior
                     story.append(Paragraph(full_text, title_style))
-                    story.append(Spacer(1, 15))
-                elif any(keyword in full_text.lower() for keyword in ['número', 'iccid', 'numéro', 'número']):
+                    story.append(Spacer(1, 20))
+                elif 'olá' in full_text.lower() or 'ola' in full_text.lower():
+                    # Saudação
+                    story.append(Paragraph(full_text, normal_style))
+                    story.append(Spacer(1, 8))
+                elif 'bem-vindo' in full_text.lower() or 'bem-vinda' in full_text.lower():
+                    # Título de boas-vindas
+                    story.append(Paragraph(full_text, subtitle_style))
+                    story.append(Spacer(1, 12))
+                elif any(keyword in full_text.lower() for keyword in ['número', 'iccid', 'numéro', 'número', 'código']):
                     # Dados importantes
                     story.append(Paragraph(full_text, data_style))
                     story.append(Spacer(1, 8))
-                elif len(full_text.strip()) < 50 and any(keyword in full_text.lower() for keyword in ['prezado', 'atenciosamente', 'equipe']):
-                    # Cabeçalhos e rodapés
-                    story.append(Paragraph(full_text, subtitle_style))
+                elif any(keyword in full_text.lower() for keyword in ['923', 'contactar', 'dúvida']):
+                    # Informações de contato
+                    story.append(Paragraph(full_text, normal_style))
                     story.append(Spacer(1, 10))
+                elif any(keyword in full_text.lower() for keyword in ['até breve', 'equipe digi']):
+                    # Fechamento
+                    story.append(Paragraph(full_text, normal_style))
+                    story.append(Spacer(1, 15))
+                elif any(keyword in full_text.lower() for keyword in ['matriculada', 'capital social', 'avenida']):
+                    # Rodapé legal - texto menor e cinza
+                    footer_style = ParagraphStyle(
+                        'Footer',
+                        parent=normal_style,
+                        fontSize=9,
+                        textColor=colors.grey,
+                        spaceAfter=6
+                    )
+                    story.append(Paragraph(full_text, footer_style))
+                    story.append(Spacer(1, 6))
                 elif paragraph.alignment == WD_ALIGN_PARAGRAPH.CENTER:
                     # Texto centralizado
                     center_style = ParagraphStyle(
@@ -1426,8 +1452,9 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                         cell_text = ''.join(cell_content).strip()
                         row_data.append(cell_text)
                         
-                        # Detectar se é cabeçalho (primeira linha com texto sublinhado)
-                        if i == 0 and any(run.underline for run in cell.paragraphs[0].runs):
+                        # Detectar se é cabeçalho (primeira linha com texto sublinhado ou negrito)
+                        if i == 0 and (any(run.underline for run in cell.paragraphs[0].runs) or 
+                                      any(run.bold for run in cell.paragraphs[0].runs)):
                             has_header = True
                     
                     if row_data:  # Só adicionar se a linha não estiver vazia
@@ -1438,22 +1465,27 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                     pdf_table = Table(table_data)
                     
                     if has_header:
-                        # Tabela com cabeçalho formatado
+                        # Tabela com cabeçalho formatado - estilo DIGI
                         pdf_table.setStyle(TableStyle([
-                            # Cabeçalho da tabela
-                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0915FF')),
-                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                            # Cabeçalho da tabela - negrito e sublinhado
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                            ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
                             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 12),
-                            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                            ('FONTSIZE', (0, 0), (-1, 0), 11),
+                            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                            ('TOPPADDING', (0, 0), (-1, 0), 8),
+                            # Linha separadora do cabeçalho
+                            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
                             # Corpo da tabela
                             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                             ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
                             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
                             ('FONTSIZE', (0, 1), (-1, -1), 11),
-                            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#0915FF')),
-                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F0F8FF')])
+                            ('TOPPADDING', (0, 1), (-1, -1), 6),
+                            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+                            # Sem bordas internas, apenas linha separadora
+                            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black)
                         ]))
                     else:
                         # Tabela simples
