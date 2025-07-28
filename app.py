@@ -486,15 +486,19 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
     for i, row_data in enumerate(chunk):
         try:
             nome = row_data.get('NOME', f'registro_{i+1}')
-            print(f"   📄 Gerando PDF {i+1}/{len(chunk)} para: {nome}")
+            numero = row_data.get('NUMERO', f'{i+1:03d}')
+            print(f"   📄 Gerando PDF {i+1}/{len(chunk)} para: {nome} (Número: {numero})")
             
             # SEMPRE tentar usar template Word primeiro
             pdf_buffer = None
+            conversion_method = "N/A"
+            
             if use_word_template and template_name:
                 template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
                 if os.path.exists(template_path):
                     print(f"      🎨 Usando template Word: {template_name}")
                     pdf_buffer = force_word_conversion(row_data, template_path)
+                    conversion_method = "Word Template"
                 else:
                     print(f"      ⚠️ Template Word não encontrado")
             
@@ -502,15 +506,17 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
             if not pdf_buffer or not pdf_buffer.getvalue():
                 print(f"      📄 Usando template padrão DIGI")
                 pdf_buffer = generate_digi_template_pdf(row_data)
+                conversion_method = "DIGI Template"
             
             # GARANTIR que temos um PDF válido
             if not pdf_buffer:
                 print(f"      ⚠️ Buffer é None, criando PDF mínimo...")
                 pdf_buffer = io.BytesIO()
                 doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-                story = [Paragraph(f"Carta para {row_data.get('NUMERO', 'N/A')}", getSampleStyleSheet()['Normal'])]
+                story = [Paragraph(f"Carta para {numero}", getSampleStyleSheet()['Normal'])]
                 doc_pdf.build(story)
                 pdf_buffer.seek(0)
+                conversion_method = "PDF Mínimo"
             
             # Verificar conteúdo
             pdf_content = pdf_buffer.getvalue()
@@ -518,10 +524,11 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
                 print(f"      ⚠️ Buffer vazio, criando PDF mínimo...")
                 pdf_buffer = io.BytesIO()
                 doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-                story = [Paragraph(f"Carta para {row_data.get('NUMERO', 'N/A')}", getSampleStyleSheet()['Normal'])]
+                story = [Paragraph(f"Carta para {numero}", getSampleStyleSheet()['Normal'])]
                 doc_pdf.build(story)
                 pdf_buffer.seek(0)
                 pdf_content = pdf_buffer.getvalue()
+                conversion_method = "PDF Mínimo (Vazio)"
             
             # Salvar PDF temporário com nome único
             temp_pdf_path = os.path.join(
@@ -543,11 +550,10 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
                 continue
             
             # Nome do arquivo baseado no número
-            numero = row_data.get('NUMERO', f'{i+1:03d}')
             filename = f'Carta_{numero}.pdf'
             
             pdf_files.append((temp_pdf_path, filename))
-            print(f"      ✅ PDF gerado: {filename} ({file_size} bytes)")
+            print(f"      ✅ PDF gerado: {filename} ({file_size} bytes) - Método: {conversion_method}")
             
         except Exception as e:
             print(f"      ❌ Erro ao gerar PDF para {row_data.get('NOME', 'registro')}: {e}")
@@ -570,7 +576,7 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
                 numero = row_data.get('NUMERO', f'{i+1:03d}')
                 filename = f'Carta_{numero}.pdf'
                 pdf_files.append((temp_pdf_path, filename))
-                print(f"      ✅ PDF de emergência criado: {filename}")
+                print(f"      ✅ PDF de emergência criado: {filename} - Método: Emergência")
                 
             except Exception as emergency_error:
                 print(f"      ❌ Erro crítico: {emergency_error}")
@@ -1493,6 +1499,11 @@ def force_word_conversion(row_data, template_path):
     try:
         print(f"      🔥 FORÇANDO conversão Word para PDF...")
         
+        # Verificar dados de entrada
+        numero = row_data.get('NUMERO', 'N/A')
+        iccid = row_data.get('ICCID', 'N/A')
+        print(f"      📊 Dados: Número={numero}, ICCID={iccid}")
+        
         # Criar arquivo temporário único
         timestamp = int(time.time() * 1000000)
         temp_docx = os.path.join(app.config['TEMP_FOLDER'], f'force_{timestamp}.docx')
@@ -1502,6 +1513,11 @@ def force_word_conversion(row_data, template_path):
         shutil.copy2(template_path, temp_docx)
         print(f"      ✅ Template copiado: {temp_docx}")
         
+        # Verificar se o arquivo foi copiado corretamente
+        if not os.path.exists(temp_docx):
+            print(f"      ❌ Falha ao copiar template")
+            return None
+            
         # Carregar e processar documento
         doc = Document(temp_docx)
         
@@ -1554,8 +1570,14 @@ def force_word_conversion(row_data, template_path):
         doc.save(temp_docx)
         print(f"      ✅ Documento salvo com substituições")
         
+        # Verificar se o arquivo foi salvo
+        if not os.path.exists(temp_docx):
+            print(f"      ❌ Falha ao salvar documento processado")
+            return None
+        
         # Tentar conversão com MÚLTIPLOS métodos
         pdf_content = None
+        method_used = "Nenhum"
         
         # Método 1: docx2pdf direto
         try:
@@ -1565,18 +1587,24 @@ def force_word_conversion(row_data, template_path):
                 try:
                     import pythoncom
                     pythoncom.CoInitialize()
-                except:
-                    pass
+                    print(f"      ✅ COM inicializado")
+                except Exception as com_error:
+                    print(f"      ⚠️ Erro COM: {com_error}")
             
             from docx2pdf import convert
             convert(temp_docx, temp_pdf)
+            
+            # Aguardar e verificar
+            import time
+            time.sleep(2)
             
             if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
                 with open(temp_pdf, 'rb') as f:
                     pdf_content = f.read()
                 print(f"      ✅ Método 1 bem-sucedido: {len(pdf_content)} bytes")
+                method_used = "docx2pdf"
             else:
-                print(f"      ❌ Método 1 falhou")
+                print(f"      ❌ Método 1 falhou - PDF não criado ou vazio")
         except Exception as e:
             print(f"      ❌ Método 1 falhou: {e}")
         
@@ -1587,6 +1615,7 @@ def force_word_conversion(row_data, template_path):
                 pdf_content = convert_word_to_pdf_fallback(temp_docx, temp_pdf)
                 if pdf_content:
                     print(f"      ✅ Método 2 bem-sucedido: {len(pdf_content)} bytes")
+                    method_used = "ReportLab"
                 else:
                     print(f"      ❌ Método 2 falhou")
             except Exception as e:
@@ -1659,6 +1688,7 @@ def force_word_conversion(row_data, template_path):
                 pdf_buffer.seek(0)
                 pdf_content = pdf_buffer.getvalue()
                 print(f"      ✅ Método 3 bem-sucedido: {len(pdf_content)} bytes")
+                method_used = "Recriar PDF"
                 
             except Exception as e:
                 print(f"      ❌ Método 3 falhou: {e}")
@@ -1677,19 +1707,21 @@ def force_word_conversion(row_data, template_path):
             try:
                 pdf_content = generate_digi_template_pdf(row_data).getvalue()
                 print(f"      ✅ PDF padrão gerado: {len(pdf_content)} bytes")
+                method_used = "PDF Padrão"
             except Exception as e:
                 print(f"      ❌ Erro ao gerar PDF padrão: {e}")
                 # Último recurso: PDF mínimo
                 pdf_buffer = io.BytesIO()
                 doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-                story = [Paragraph(f"Carta para {row_data.get('NUMERO', 'N/A')}", getSampleStyleSheet()['Normal'])]
+                story = [Paragraph(f"Carta para {numero}", getSampleStyleSheet()['Normal'])]
                 doc_pdf.build(story)
                 pdf_buffer.seek(0)
                 pdf_content = pdf_buffer.getvalue()
                 print(f"      ✅ PDF mínimo gerado: {len(pdf_content)} bytes")
+                method_used = "PDF Mínimo"
         
         if pdf_content:
-            print(f"      🎉 Conversão FORÇADA bem-sucedida!")
+            print(f"      🎉 Conversão FORÇADA bem-sucedida! Método: {method_used}")
             return io.BytesIO(pdf_content)
         else:
             print(f"      ❌ Todos os métodos falharam")
