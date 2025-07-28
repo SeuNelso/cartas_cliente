@@ -32,6 +32,16 @@ except ImportError:
     WINDOWS_AVAILABLE = False
     print("⚠️ Windows dependencies not available - Word conversion will use fallback methods")
 
+# Linux-compatible Word processing
+try:
+    from docx import Document
+    from docx.shared import Inches, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+    print("⚠️ python-docx not available - using basic text conversion")
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'sua_chave_secreta_aqui'
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -1113,23 +1123,104 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
         # Ler o documento Word
         doc = Document(docx_path)
         
-        # Extrair texto com formatação básica
-        text_content = []
-        for paragraph in doc.paragraphs:
-            if paragraph.text.strip():
-                text_content.append(paragraph.text)
-        
-        # Gerar PDF simples com ReportLab
+        # Gerar PDF com formatação preservada
         pdf_buffer = io.BytesIO()
-        doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+        doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
+                                   topMargin=1*inch, bottomMargin=1*inch,
+                                   leftMargin=1*inch, rightMargin=1*inch)
         story = []
         
+        # Estilos otimizados para preservar formatação
         styles = getSampleStyleSheet()
         
-        for line in text_content:
-            if line.strip():
-                story.append(Paragraph(line, styles['Normal']))
-                story.append(Spacer(1, 12))
+        # Estilo para título
+        title_style = ParagraphStyle(
+            'Title',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=20,
+            alignment=1,  # Centralizado
+            textColor=colors.HexColor('#0915FF')
+        )
+        
+        # Estilo para texto normal
+        normal_style = ParagraphStyle(
+            'Normal',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=12,
+            leading=16,
+            alignment=0  # Justificado
+        )
+        
+        # Estilo para assinatura
+        signature_style = ParagraphStyle(
+            'Signature',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=12,
+            leading=16,
+            alignment=2  # Direita
+        )
+        
+        # Processar parágrafos preservando formatação
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                # Detectar tipo de parágrafo baseado no estilo e alinhamento
+                paragraph_style = paragraph.style.name.lower()
+                alignment = paragraph.alignment
+                
+                # Detectar títulos
+                if any(keyword in paragraph_style for keyword in ['heading', 'title', 'header']):
+                    story.append(Paragraph(paragraph.text, title_style))
+                # Detectar assinaturas (alinhadas à direita)
+                elif alignment == WD_ALIGN_PARAGRAPH.RIGHT:
+                    story.append(Paragraph(paragraph.text, signature_style))
+                # Detectar parágrafos especiais
+                elif paragraph_style in ['list', 'bullet']:
+                    # Estilo para listas
+                    list_style = ParagraphStyle(
+                        'List',
+                        parent=styles['Normal'],
+                        fontSize=12,
+                        spaceAfter=8,
+                        leftIndent=20,
+                        leading=14
+                    )
+                    story.append(Paragraph(f"• {paragraph.text}", list_style))
+                else:
+                    story.append(Paragraph(paragraph.text, normal_style))
+                
+                # Adicionar espaçamento baseado no tipo
+                if any(keyword in paragraph_style for keyword in ['heading', 'title']):
+                    story.append(Spacer(1, 20))  # Mais espaço para títulos
+                else:
+                    story.append(Spacer(1, 12))
+        
+        # Processar tabelas se existirem
+        for table in doc.tables:
+            table_data = []
+            for row in table.rows:
+                row_data = []
+                for cell in row.cells:
+                    row_data.append(cell.text)
+                table_data.append(row_data)
+            
+            if table_data:
+                # Criar tabela no PDF
+                pdf_table = Table(table_data)
+                pdf_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 14),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                story.append(pdf_table)
+                story.append(Spacer(1, 20))
         
         doc_pdf.build(story)
         pdf_buffer.seek(0)
