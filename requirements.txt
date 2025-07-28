@@ -7,8 +7,6 @@ python-docx>=0.8.11
 docx2pdf>=0.1.8
 # Linux-compatible Word to PDF conversion
 python-docx-replace>=0.1.0
-# Enhanced Word processing
-python-docx-template>=0.16.7
 # Windows-specific dependencies (commented for Linux deployment)
 # comtypes>=1.2.0
 # pywin32>=305 
