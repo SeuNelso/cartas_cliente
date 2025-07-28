@@ -4,9 +4,5 @@ openpyxl>=3.0.0
 reportlab>=3.6.0
 Werkzeug>=2.0.0
 python-docx>=0.8.11
-docx2pdf>=0.1.8
-# Linux-compatible Word to PDF conversion
-python-docx-replace>=0.1.0
-# Windows-specific dependencies (commented for Linux deployment)
-# comtypes>=1.2.0
-# pywin32>=305 
+# Dependências essenciais para conversão robusta
+docx2pdf>=0.1.8 

@@ -629,7 +629,7 @@ def generate_simple_pdf(row_data, template_text):
     return generate_simple_pdf_optimized(row_data, template_text)
 
 def generate_word_pdf_ultra_optimized(row_data, template_name):
-    """Gera PDF a partir de template Word preservando formatação exata"""
+    """Gera PDF a partir de template Word usando abordagem robusta"""
     try:
         print(f"      🎨 Iniciando geração Word PDF para template: {template_name}")
         print(f"      📊 Dados recebidos: {list(row_data.keys())}")
@@ -656,387 +656,74 @@ def generate_word_pdf_ultra_optimized(row_data, template_name):
         shutil.copy2(template_path, temp_docx)
         print(f"      ✅ Template copiado para: {temp_docx}")
         
-        # Carregar documento e substituir placeholders preservando formatação
+        # Carregar documento e substituir placeholders de forma simples
         doc = Document(temp_docx)
         
-        # Substituir placeholders de forma mais robusta
-        def replace_placeholders_robust():
-            # Mapeamento de placeholders longos específicos
+        # Substituir placeholders de forma simples e robusta
+        def replace_placeholders_simple():
+            # Mapeamento de placeholders
             placeholder_mapping = {
-                '[Descreva seus pensamentos e sentimentos em detalhes]': 'DESCREVA_SEUS_PENSAMENTOS_E_SENTIMENTOS_EM_DETALHES',
-                '[Adicione mais detalhes aqui]': 'ADICIONE_MAIS_DETALHES_AQUI',
-                '[Escreva sua mensagem]': 'ESCREVA_SUA_MENSAGEM',
-                '[Texto personalizado]': 'TEXTO_PERSONALIZADO',
                 '[NUMERO]': 'NUMERO',
-                '[ICCID]': 'ICCID'
+                '[ICCID]': 'ICCID',
+                '[NOME]': 'NOME',
+                '[EMAIL]': 'EMAIL',
+                '[TELEFONE]': 'TELEFONE'
             }
             
-            # Substituir placeholders preservando formatação
+            # Substituir em parágrafos
             for paragraph in doc.paragraphs:
-                # Verificar se há placeholders no parágrafo
                 full_text = paragraph.text
-                has_placeholder = False
+                new_text = full_text
                 
-                # Verificar placeholders específicos primeiro
-                for template_placeholder, data_key in placeholder_mapping.items():
-                    if template_placeholder in full_text and data_key in row_data:
-                        has_placeholder = True
-                        break
+                # Substituir placeholders mapeados
+                for placeholder, data_key in placeholder_mapping.items():
+                    if placeholder in new_text and data_key in row_data:
+                        new_text = new_text.replace(placeholder, str(row_data[data_key]) if row_data[data_key] is not None else '')
+                        print(f"      🔄 Substituído: {placeholder} → {row_data[data_key]}")
                 
-                # Verificar placeholders gerais
-                if not has_placeholder:
-                    for key, value in row_data.items():
-                        placeholder = f'[{key.upper()}]'
-                        if placeholder in full_text:
-                            has_placeholder = True
-                            break
+                # Substituir placeholders gerais
+                for key, value in row_data.items():
+                    placeholder = f'[{key.upper()}]'
+                    if placeholder in new_text:
+                        new_text = new_text.replace(placeholder, str(value) if value is not None else '')
                 
-                if has_placeholder:
-                    # Substituir placeholders preservando formatação por run
-                    new_text = full_text
-                    
-                    # Substituir placeholders específicos primeiro
-                    for template_placeholder, data_key in placeholder_mapping.items():
-                        if template_placeholder in new_text and data_key in row_data:
-                            new_text = new_text.replace(template_placeholder, str(row_data[data_key]) if row_data[data_key] is not None else '')
-                            print(f"   🔄 Substituído placeholder específico: {template_placeholder} → {row_data[data_key]}")
-                    
-                    # Substituir placeholders gerais
-                    for key, value in row_data.items():
-                        placeholder = f'[{key.upper()}]'
-                        if placeholder in new_text:
-                            new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                    
-                    # Aplicar substituição preservando formatação
-                    if new_text != full_text:
-                        # Preservar formatação completa antes de qualquer modificação
-                        preserved_alignment = paragraph.alignment
-                        preserved_style = paragraph.style
-                        preserved_format = paragraph.paragraph_format
-                        
-                        # Preservar formatação de cada run
-                        preserved_runs = []
-                        for run in paragraph.runs:
-                            preserved_runs.append({
-                                'text': run.text,
-                                'font_name': run.font.name,
-                                'font_size': run.font.size,
-                                'bold': run.font.bold,
-                                'italic': run.font.italic,
-                                'color': run.font.color.rgb,
-                                'style': run.style
-                            })
-                        
-                        # Limpar parágrafo
-                        paragraph.clear()
-                        
-                        # Recriar runs com formatação preservada
-                        if preserved_runs:
-                            # Aplicar formatação do primeiro run ao texto completo
-                            first_run_format = preserved_runs[0]
-                            new_run = paragraph.add_run(new_text)
-                            
-                            # Aplicar formatação preservada
-                            new_run.font.name = first_run_format['font_name']
-                            new_run.font.size = first_run_format['font_size']
-                            new_run.font.bold = first_run_format['bold']
-                            new_run.font.italic = first_run_format['italic']
-                            new_run.font.color.rgb = first_run_format['color']
-                            new_run.style = first_run_format['style']
-                        
-                        # Restaurar formatação do parágrafo
-                        paragraph.alignment = preserved_alignment
-                        paragraph.style = preserved_style
-                        
-                        # Restaurar formatação de parágrafo
-                        if preserved_format:
-                            paragraph.paragraph_format.space_before = preserved_format.space_before
-                            paragraph.paragraph_format.space_after = preserved_format.space_after
-                            paragraph.paragraph_format.left_indent = preserved_format.left_indent
-                            paragraph.paragraph_format.right_indent = preserved_format.right_indent
-                        
-                        print(f"   🔄 Substituído placeholder preservando formatação completa")
+                # Aplicar substituição se houve mudança
+                if new_text != full_text:
+                    paragraph.text = new_text
+                    print(f"      ✅ Parágrafo atualizado")
             
-            # Fazer o mesmo para tabelas
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for paragraph in cell.paragraphs:
-                            # Verificar se há placeholders no parágrafo
-                            full_text = paragraph.text
-                            has_placeholder = False
-                            
-                            # Verificar placeholders específicos primeiro
-                            for template_placeholder, data_key in placeholder_mapping.items():
-                                if template_placeholder in full_text and data_key in row_data:
-                                    has_placeholder = True
-                                    break
-                            
-                            # Verificar placeholders gerais
-                            if not has_placeholder:
-                                for key, value in row_data.items():
-                                    placeholder = f'[{key.upper()}]'
-                                    if placeholder in full_text:
-                                        has_placeholder = True
-                                        break
-                            
-                            if has_placeholder:
-                                # Substituir placeholders preservando formatação por run
-                                new_text = full_text
-                                
-                                # Substituir placeholders específicos primeiro
-                                for template_placeholder, data_key in placeholder_mapping.items():
-                                    if template_placeholder in new_text and data_key in row_data:
-                                        new_text = new_text.replace(template_placeholder, str(row_data[data_key]) if row_data[data_key] is not None else '')
-                                        print(f"   🔄 Substituído placeholder específico em tabela: {template_placeholder} → {row_data[data_key]}")
-                                
-                                # Substituir placeholders gerais
-                                for key, value in row_data.items():
-                                    placeholder = f'[{key.upper()}]'
-                                    if placeholder in new_text:
-                                        new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                                
-                                # Aplicar substituição preservando formatação
-                                if new_text != full_text:
-                                    # Preservar formatação completa antes de qualquer modificação
-                                    preserved_alignment = paragraph.alignment
-                                    preserved_style = paragraph.style
-                                    preserved_format = paragraph.paragraph_format
-                                    
-                                    # Preservar formatação de cada run
-                                    preserved_runs = []
-                                    for run in paragraph.runs:
-                                        preserved_runs.append({
-                                            'text': run.text,
-                                            'font_name': run.font.name,
-                                            'font_size': run.font.size,
-                                            'bold': run.font.bold,
-                                            'italic': run.font.italic,
-                                            'color': run.font.color.rgb,
-                                            'style': run.style
-                                        })
-                                    
-                                    # Limpar parágrafo
-                                    paragraph.clear()
-                                    
-                                    # Recriar runs com formatação preservada
-                                    if preserved_runs:
-                                        # Aplicar formatação do primeiro run ao texto completo
-                                        first_run_format = preserved_runs[0]
-                                        new_run = paragraph.add_run(new_text)
-                                        
-                                        # Aplicar formatação preservada
-                                        new_run.font.name = first_run_format['font_name']
-                                        new_run.font.size = first_run_format['font_size']
-                                        new_run.font.bold = first_run_format['bold']
-                                        new_run.font.italic = first_run_format['italic']
-                                        new_run.font.color.rgb = first_run_format['color']
-                                        new_run.style = first_run_format['style']
-                                    
-                                    # Restaurar formatação do parágrafo
-                                    paragraph.alignment = preserved_alignment
-                                    paragraph.style = preserved_style
-                                    
-                                    # Restaurar formatação de parágrafo
-                                    if preserved_format:
-                                        paragraph.paragraph_format.space_before = preserved_format.space_before
-                                        paragraph.paragraph_format.space_after = preserved_format.space_after
-                                        paragraph.paragraph_format.left_indent = preserved_format.left_indent
-                                        paragraph.paragraph_format.right_indent = preserved_format.right_indent
-                                    
-                                    print(f"   🔄 Substituído placeholder em tabela preservando formatação completa")
-            
-            # Fazer o mesmo para tabelas
+            # Substituir em tabelas
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
                         for paragraph in cell.paragraphs:
                             full_text = paragraph.text
-                            has_placeholder = False
+                            new_text = full_text
                             
-                            # Mapeamento de placeholders longos específicos
-                            placeholder_mapping = {
-                                '[Descreva seus pensamentos e sentimentos em detalhes]': 'DESCREVA_SEUS_PENSAMENTOS_E_SENTIMENTOS_EM_DETALHES',
-                                '[Adicione mais detalhes aqui]': 'ADICIONE_MAIS_DETALHES_AQUI',
-                                '[Escreva sua mensagem]': 'ESCREVA_SUA_MENSAGEM',
-                                '[Texto personalizado]': 'TEXTO_PERSONALIZADO',
-                                '[NUMERO]': 'NUMERO',
-                                '[ICCID]': 'ICCID'
-                            }
+                            # Substituir placeholders mapeados
+                            for placeholder, data_key in placeholder_mapping.items():
+                                if placeholder in new_text and data_key in row_data:
+                                    new_text = new_text.replace(placeholder, str(row_data[data_key]) if row_data[data_key] is not None else '')
                             
-                            # Verificar placeholders específicos primeiro
-                            for template_placeholder, data_key in placeholder_mapping.items():
-                                if template_placeholder in full_text and data_key in row_data:
-                                    has_placeholder = True
-                                    break
+                            # Substituir placeholders gerais
+                            for key, value in row_data.items():
+                                placeholder = f'[{key.upper()}]'
+                                if placeholder in new_text:
+                                    new_text = new_text.replace(placeholder, str(value) if value is not None else '')
                             
-                            # Verificar placeholders gerais
-                            if not has_placeholder:
-                                for key, value in row_data.items():
-                                    placeholder = f'[{key.upper()}]'
-                                    if placeholder in full_text:
-                                        has_placeholder = True
-                                        break
-                            
-                            if has_placeholder:
-                                # Substituir placeholders preservando formatação por run
-                                new_text = full_text
-                                
-                                # Substituir placeholders específicos primeiro
-                                for template_placeholder, data_key in placeholder_mapping.items():
-                                    if template_placeholder in new_text and data_key in row_data:
-                                        new_text = new_text.replace(template_placeholder, str(row_data[data_key]) if row_data[data_key] is not None else '')
-                                        print(f"   🔄 Substituído placeholder específico em tabela: {template_placeholder} → {row_data[data_key]}")
-                                
-                                # Substituir placeholders gerais
-                                for key, value in row_data.items():
-                                    placeholder = f'[{key.upper()}]'
-                                    if placeholder in new_text:
-                                        new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                                
-                                # Aplicar substituição preservando formatação
-                                if new_text != full_text:
-                                    # Preservar formatação de cada run
-                                    preserved_runs = []
-                                    for run in paragraph.runs:
-                                        preserved_runs.append({
-                                            'text': run.text,
-                                            'font_name': run.font.name,
-                                            'font_size': run.font.size,
-                                            'bold': run.font.bold,
-                                            'italic': run.font.italic,
-                                            'color': run.font.color.rgb,
-                                            'style': run.style
-                                        })
-                                    
-                                    # Preservar formatação do parágrafo
-                                    preserved_alignment = paragraph.alignment
-                                    preserved_style = paragraph.style
-                                    preserved_format = paragraph.paragraph_format
-                                    
-                                    # Limpar parágrafo
-                                    paragraph.clear()
-                                    
-                                    # Recriar runs com formatação preservada
-                                    if preserved_runs:
-                                        # Aplicar formatação do primeiro run ao texto completo
-                                        first_run_format = preserved_runs[0]
-                                        new_run = paragraph.add_run(new_text)
-                                        
-                                        # Aplicar formatação preservada
-                                        new_run.font.name = first_run_format['font_name']
-                                        new_run.font.size = first_run_format['font_size']
-                                        new_run.font.bold = first_run_format['bold']
-                                        new_run.font.italic = first_run_format['italic']
-                                        new_run.font.color.rgb = first_run_format['color']
-                                        new_run.style = first_run_format['style']
-                                    
-                                    # Restaurar formatação do parágrafo
-                                    paragraph.alignment = preserved_alignment
-                                    paragraph.style = preserved_style
-                                    
-                                    # Restaurar formatação de parágrafo
-                                    if preserved_format:
-                                        paragraph.paragraph_format.space_before = preserved_format.space_before
-                                        paragraph.paragraph_format.space_after = preserved_format.space_after
-                                        paragraph.paragraph_format.left_indent = preserved_format.left_indent
-                                        paragraph.paragraph_format.right_indent = preserved_format.right_indent
-                                    
-                                    print(f"   🔄 Substituído placeholder em tabela preservando formatação completa")
+                            # Aplicar substituição se houve mudança
+                            if new_text != full_text:
+                                paragraph.text = new_text
         
         # Executar substituição
-        replace_placeholders_robust()
-        
-        # Preservar formatação adicional do documento
-        def preserve_document_formatting():
-            # Preservar estilos de parágrafo
-            for paragraph in doc.paragraphs:
-                if paragraph.style:
-                    # Manter alinhamento
-                    if hasattr(paragraph, 'alignment'):
-                        paragraph.alignment = paragraph.alignment
-                    
-                    # Manter espaçamento
-                    if hasattr(paragraph.paragraph_format, 'space_before'):
-                        paragraph.paragraph_format.space_before = paragraph.paragraph_format.space_before
-                    if hasattr(paragraph.paragraph_format, 'space_after'):
-                        paragraph.paragraph_format.space_after = paragraph.paragraph_format.space_after
-                    
-                    # Manter recuo
-                    if hasattr(paragraph.paragraph_format, 'left_indent'):
-                        paragraph.paragraph_format.left_indent = paragraph.paragraph_format.left_indent
-                    if hasattr(paragraph.paragraph_format, 'right_indent'):
-                        paragraph.paragraph_format.right_indent = paragraph.paragraph_format.right_indent
-            
-            # Preservar formatação de tabelas
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for paragraph in cell.paragraphs:
-                            if paragraph.style:
-                                # Manter alinhamento da célula
-                                if hasattr(cell, 'vertical_alignment'):
-                                    cell.vertical_alignment = cell.vertical_alignment
-        
-        # Aplicar preservação de formatação
-        preserve_document_formatting()
+        replace_placeholders_simple()
         
         # Salvar documento modificado
         doc.save(temp_docx)
+        print(f"      ✅ Documento salvo com placeholders substituídos")
         
-        # Verificar se a substituição foi bem-sucedida
-        doc_check = Document(temp_docx)
-        texto_completo = ""
-        
-        # Verificar em parágrafos
-        for paragraph in doc_check.paragraphs:
-            texto_completo += paragraph.text + "\n"
-        
-        # Verificar em tabelas
-        for table in doc_check.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        texto_completo += paragraph.text + "\n"
-        
-        # Verificar em headers e footers
-        for section in doc_check.sections:
-            if section.header:
-                for paragraph in section.header.paragraphs:
-                    texto_completo += paragraph.text + "\n"
-            if section.footer:
-                for paragraph in section.footer.paragraphs:
-                    texto_completo += paragraph.text + "\n"
-        
-        # Verificar se ainda há placeholders
-        placeholders_restantes = []
-        for key in row_data.keys():
-            placeholder = f'[{key.upper()}]'
-            if placeholder in texto_completo:
-                placeholders_restantes.append(placeholder)
-                print(f"   ⚠️ Placeholder não substituído: {placeholder}")
-        
-        # Verificar também placeholders personalizados que podem estar no template
-        placeholders_personalizados = [
-            '[Descreva seus pensamentos e sentimentos em detalhes]',
-            '[Adicione mais detalhes aqui]',
-            '[Escreva sua mensagem]',
-            '[Texto personalizado]'
-        ]
-        
-        for placeholder in placeholders_personalizados:
-            if placeholder in texto_completo:
-                placeholders_restantes.append(placeholder)
-                print(f"   ⚠️ Placeholder personalizado não substituído: {placeholder}")
-        
-        if placeholders_restantes:
-            print(f"⚠️ Placeholders não substituídos para {row_data.get('NOME', 'registro')}: {placeholders_restantes}")
-            print(f"   Usando método alternativo...")
-            # Usar método alternativo
-            return generate_word_pdf_alternative_method(row_data, template_path, temp_docx, temp_pdf)
-        
-        # Usar método fallback que funciona no Linux
-        print(f"      🔄 Usando conversão fallback para Linux...")
+        # Usar método robusto de conversão
+        print(f"      🔄 Convertendo para PDF usando método robusto...")
         pdf_content = convert_word_to_pdf_fallback(temp_docx, temp_pdf)
         
         # Limpar arquivos temporários
@@ -1053,14 +740,14 @@ def generate_word_pdf_ultra_optimized(row_data, template_name):
             print(f"      ✅ PDF gerado com sucesso: {len(pdf_content)} bytes")
             return pdf_buffer
         else:
-            # Fallback para método simples se conversão falhar
-            print(f"      ❌ Conversão Word falhou para {row_data.get('NOME', 'registro')}, usando ReportLab")
-            return generate_simple_pdf_optimized(row_data, DEFAULT_TEMPLATE)
+            print(f"      ❌ Falha na conversão, usando método alternativo")
+            # Fallback para método simples
+            return generate_simple_pdf_optimized(row_data, "Template padrão")
         
     except Exception as e:
-        print(f"Erro na conversão Word para PDF: {e}")
+        print(f"      ❌ Erro na geração Word PDF: {e}")
         # Fallback para método simples
-        return generate_simple_pdf_optimized(row_data, DEFAULT_TEMPLATE)
+        return generate_simple_pdf_optimized(row_data, "Template padrão")
 
 def generate_word_pdf_alternative_method(row_data, template_path, temp_docx, temp_pdf):
     """Método alternativo para substituir placeholders quando o método principal falha"""
@@ -1248,40 +935,52 @@ def convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path):
             pass
 
 def convert_word_to_pdf_fallback(docx_path, pdf_path):
-    """Fallback para conversão Word para PDF quando Windows não está disponível"""
+    """Fallback robusto para conversão Word para PDF usando apenas ReportLab"""
     try:
-        print(f"   📄 Usando fallback para conversão")
+        print(f"   📄 Usando conversão ReportLab robusta")
         
         # Ler o documento Word
         doc = Document(docx_path)
         
-        # Gerar PDF com formatação melhorada
+        # Gerar PDF com formatação exata da DIGI
         pdf_buffer = io.BytesIO()
         doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
-                                   topMargin=0.5*inch, bottomMargin=0.5*inch,
-                                   leftMargin=0.5*inch, rightMargin=0.5*inch)
+                                   topMargin=0.7*inch, bottomMargin=0.7*inch,
+                                   leftMargin=0.7*inch, rightMargin=0.7*inch)
         story = []
         
-        # Estilos melhorados
+        # Estilos otimizados para DIGI
         styles = getSampleStyleSheet()
         
-        # Estilo para logo/título principal
-        title_style = ParagraphStyle(
-            'Title',
+        # Estilo para logo DIGI (azul, centralizado, grande)
+        digi_logo_style = ParagraphStyle(
+            'DigiLogo',
             parent=styles['Heading1'],
-            fontSize=20,
-            spaceAfter=20,
+            fontSize=24,
+            spaceAfter=30,
             alignment=1,  # Centralizado
             textColor=colors.HexColor('#0915FF'),
             fontName='Helvetica-Bold'
         )
         
-        # Estilo para subtítulos
-        subtitle_style = ParagraphStyle(
-            'Subtitle',
+        # Estilo para saudação
+        greeting_style = ParagraphStyle(
+            'Greeting',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=8,
+            leading=16,
+            alignment=0,  # Esquerda
+            textColor=colors.black
+        )
+        
+        # Estilo para título de boas-vindas
+        welcome_style = ParagraphStyle(
+            'Welcome',
             parent=styles['Heading2'],
             fontSize=14,
             spaceAfter=12,
+            leading=18,
             alignment=0,  # Esquerda
             textColor=colors.black,
             fontName='Helvetica-Bold'
@@ -1298,205 +997,149 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
             textColor=colors.black
         )
         
-        # Estilo para dados importantes
+        # Estilo para dados importantes (número, ICCID)
         data_style = ParagraphStyle(
             'Data',
             parent=styles['Normal'],
             fontSize=11,
             spaceAfter=6,
-            leading=12,
+            leading=14,
             alignment=0,  # Esquerda
             textColor=colors.black,
             fontName='Helvetica-Bold'
         )
         
-        # Processar parágrafos preservando formatação
-        for paragraph in doc.paragraphs:
-            if paragraph.text.strip():
-                # Processar cada run para preservar formatação
-                paragraph_content = []
-                
-                for run in paragraph.runs:
-                    text = run.text
-                    is_bold = run.bold
-                    is_underline = run.underline
-                    is_italic = run.italic
-                    
-                    # Detectar cor da fonte
-                    font_color = None
-                    if hasattr(run.font, 'color') and run.font.color.rgb:
-                        # Converter cor RGB para hex
-                        rgb = run.font.color.rgb
-                        if rgb:
-                            # Converter RGB para hex (formato: RGB(r, g, b))
-                            if isinstance(rgb, str) and rgb.startswith('RGB('):
-                                rgb_values = rgb[4:-1].split(',')
-                                if len(rgb_values) == 3:
-                                    r, g, b = map(int, rgb_values)
-                                    font_color = f"#{r:02x}{g:02x}{b:02x}"
-                    
-                    # Detectar tamanho da fonte
-                    font_size = None
-                    if hasattr(run.font, 'size') and run.font.size:
-                        font_size = run.font.size.pt
-                    
-                    # Aplicar formatação baseada no conteúdo e estilo
-                    if 'digi' in text.lower() and len(text.strip()) <= 10:
-                        # Logo DIGI - azul, negrito, tamanho maior
-                        paragraph_content.append(f'<font color="#0915FF" size="18"><b>{text}</b></font>')
-                    elif 'bem-vindo' in text.lower() or 'bem-vinda' in text.lower():
-                        # Título de boas-vindas
-                        paragraph_content.append(f'<b>{text}</b>')
-                    elif any(keyword in text.lower() for keyword in ['número', 'iccid', 'numéro', 'número', 'código']):
-                        # Dados importantes em negrito
-                        paragraph_content.append(f'<b>{text}</b>')
-                    elif font_color and font_color != "#000000":
-                        # Texto com cor personalizada
-                        size_attr = f' size="{font_size}"' if font_size else ""
-                        paragraph_content.append(f'<font color="{font_color}"{size_attr}>{text}</font>')
-                    elif is_bold:
-                        # Texto em negrito
-                        paragraph_content.append(f'<b>{text}</b>')
-                    elif is_italic:
-                        # Texto em itálico
-                        paragraph_content.append(f'<i>{text}</i>')
-                    elif is_underline:
-                        # Texto sublinhado
-                        paragraph_content.append(f'<u>{text}</u>')
-                    else:
-                        # Texto normal
-                        paragraph_content.append(text)
-                
-                # Juntar conteúdo do parágrafo
-                full_text = ''.join(paragraph_content)
-                
-                # Determinar estilo baseado no conteúdo e alinhamento
-                if 'digi' in full_text.lower() and len(full_text.strip()) <= 10:
-                    # Logo DIGI - centralizado, azul, maior
-                    story.append(Paragraph(full_text, title_style))
-                    story.append(Spacer(1, 20))
-                elif 'olá' in full_text.lower() or 'ola' in full_text.lower():
-                    # Saudação
-                    story.append(Paragraph(full_text, normal_style))
-                    story.append(Spacer(1, 8))
-                elif 'bem-vindo' in full_text.lower() or 'bem-vinda' in full_text.lower():
-                    # Título de boas-vindas
-                    story.append(Paragraph(full_text, subtitle_style))
-                    story.append(Spacer(1, 12))
-                elif any(keyword in full_text.lower() for keyword in ['número', 'iccid', 'numéro', 'número', 'código']):
-                    # Dados importantes
-                    story.append(Paragraph(full_text, data_style))
-                    story.append(Spacer(1, 8))
-                elif any(keyword in full_text.lower() for keyword in ['923', 'contactar', 'dúvida']):
-                    # Informações de contato
-                    story.append(Paragraph(full_text, normal_style))
-                    story.append(Spacer(1, 10))
-                elif any(keyword in full_text.lower() for keyword in ['até breve', 'equipe digi']):
-                    # Fechamento
-                    story.append(Paragraph(full_text, normal_style))
-                    story.append(Spacer(1, 15))
-                elif any(keyword in full_text.lower() for keyword in ['matriculada', 'capital social', 'avenida']):
-                    # Rodapé legal - texto menor e cinza
-                    footer_style = ParagraphStyle(
-                        'Footer',
-                        parent=normal_style,
-                        fontSize=9,
-                        textColor=colors.grey,
-                        spaceAfter=6
-                    )
-                    story.append(Paragraph(full_text, footer_style))
-                    story.append(Spacer(1, 6))
-                elif paragraph.alignment == WD_ALIGN_PARAGRAPH.CENTER:
-                    # Texto centralizado
-                    center_style = ParagraphStyle(
-                        'Center',
-                        parent=normal_style,
-                        alignment=1  # Centralizado
-                    )
-                    story.append(Paragraph(full_text, center_style))
-                    story.append(Spacer(1, 6))
-                elif paragraph.alignment == WD_ALIGN_PARAGRAPH.RIGHT:
-                    # Texto alinhado à direita
-                    right_style = ParagraphStyle(
-                        'Right',
-                        parent=normal_style,
-                        alignment=2  # Direita
-                    )
-                    story.append(Paragraph(full_text, right_style))
-                    story.append(Spacer(1, 6))
-                else:
-                    # Texto normal
-                    story.append(Paragraph(full_text, normal_style))
-                    story.append(Spacer(1, 6))
+        # Estilo para contato
+        contact_style = ParagraphStyle(
+            'Contact',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=10,
+            leading=14,
+            alignment=0,  # Esquerda
+            textColor=colors.black
+        )
         
-        # Processar tabelas se existirem
+        # Estilo para fechamento
+        closing_style = ParagraphStyle(
+            'Closing',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=15,
+            leading=14,
+            alignment=0,  # Esquerda
+            textColor=colors.black
+        )
+        
+        # Estilo para rodapé legal
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=9,
+            spaceAfter=6,
+            leading=12,
+            alignment=0,  # Esquerda
+            textColor=colors.grey
+        )
+        
+        # Processar parágrafos de forma inteligente
+        for paragraph in doc.paragraphs:
+            text = paragraph.text.strip()
+            if not text:
+                continue
+                
+            # Detectar tipo de conteúdo baseado no texto
+            text_lower = text.lower()
+            
+            if 'digi' in text_lower and len(text.strip()) <= 10:
+                # Logo DIGI
+                story.append(Paragraph(text, digi_logo_style))
+                story.append(Spacer(1, 20))
+                
+            elif 'olá' in text_lower or 'ola' in text_lower:
+                # Saudação
+                story.append(Paragraph(text, greeting_style))
+                story.append(Spacer(1, 8))
+                
+            elif 'bem-vindo' in text_lower or 'bem-vinda' in text_lower:
+                # Título de boas-vindas
+                story.append(Paragraph(text, welcome_style))
+                story.append(Spacer(1, 12))
+                
+            elif any(keyword in text_lower for keyword in ['entusiasmados', 'vantagens', 'preço', 'fatura']):
+                # Texto explicativo
+                story.append(Paragraph(text, normal_style))
+                story.append(Spacer(1, 8))
+                
+            elif any(keyword in text_lower for keyword in ['número', 'iccid', 'cartão', 'sim']):
+                # Texto sobre dados
+                story.append(Paragraph(text, normal_style))
+                story.append(Spacer(1, 8))
+                
+            elif any(keyword in text_lower for keyword in ['923', 'contactar', 'dúvida', 'gratuito']):
+                # Informações de contato
+                story.append(Paragraph(text, contact_style))
+                story.append(Spacer(1, 10))
+                
+            elif any(keyword in text_lower for keyword in ['até breve', 'equipa digi', 'equipe digi']):
+                # Fechamento
+                story.append(Paragraph(text, closing_style))
+                story.append(Spacer(1, 15))
+                
+            elif any(keyword in text_lower for keyword in ['matriculada', 'capital social', 'avenida', 'lisboa']):
+                # Rodapé legal
+                story.append(Paragraph(text, footer_style))
+                story.append(Spacer(1, 6))
+                
+            else:
+                # Texto normal
+                story.append(Paragraph(text, normal_style))
+                story.append(Spacer(1, 6))
+        
+        # Processar tabelas de forma otimizada
         for table in doc.tables:
             if table.rows:
-                # Criar tabela no PDF
                 table_data = []
-                has_header = False
                 
-                for i, row in enumerate(table.rows):
+                for row in table.rows:
                     row_data = []
                     for cell in row.cells:
-                        # Processar formatação das células
-                        cell_content = []
-                        for run in cell.paragraphs[0].runs:
-                            if run.underline:
-                                cell_content.append(f'<u>{run.text}</u>')
-                            elif run.bold:
-                                cell_content.append(f'<b>{run.text}</b>')
-                            else:
-                                cell_content.append(run.text)
-                        
-                        cell_text = ''.join(cell_content).strip()
-                        row_data.append(cell_text)
-                        
-                        # Detectar se é cabeçalho (primeira linha com texto sublinhado ou negrito)
-                        if i == 0 and (any(run.underline for run in cell.paragraphs[0].runs) or 
-                                      any(run.bold for run in cell.paragraphs[0].runs)):
-                            has_header = True
+                        # Extrair texto da célula
+                        cell_text = ""
+                        for paragraph in cell.paragraphs:
+                            cell_text += paragraph.text + " "
+                        row_data.append(cell_text.strip())
                     
-                    if row_data:  # Só adicionar se a linha não estiver vazia
+                    if any(cell.strip() for cell in row_data):  # Só adicionar se não estiver vazio
                         table_data.append(row_data)
                 
                 if table_data:
                     # Criar tabela no PDF
                     pdf_table = Table(table_data)
                     
-                    if has_header:
-                        # Tabela com cabeçalho formatado - estilo DIGI
-                        pdf_table.setStyle(TableStyle([
-                            # Cabeçalho da tabela - negrito e sublinhado
-                            ('BACKGROUND', (0, 0), (-1, 0), colors.white),
-                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-                            ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
-                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, 0), 11),
-                            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                            ('TOPPADDING', (0, 0), (-1, 0), 8),
-                            # Linha separadora do cabeçalho
-                            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
-                            # Corpo da tabela
-                            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                            ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-                            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                            ('FONTSIZE', (0, 1), (-1, -1), 11),
-                            ('TOPPADDING', (0, 1), (-1, -1), 6),
-                            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-                            # Sem bordas internas, apenas linha separadora
-                            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black)
-                        ]))
-                    else:
-                        # Tabela simples
-                        pdf_table.setStyle(TableStyle([
-                            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                            ('FONTSIZE', (0, 0), (-1, -1), 11),
-                            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                            ('BACKGROUND', (0, 0), (-1, -1), colors.white)
-                        ]))
+                    # Estilo da tabela DIGI (cabeçalho sublinhado, sem bordas internas)
+                    table_style = TableStyle([
+                        # Cabeçalho - negrito e sublinhado
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 11),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                        ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                        ('TOPPADDING', (0, 0), (-1, 0), 8),
+                        # Linha separadora do cabeçalho
+                        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
+                        # Corpo da tabela
+                        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 1), (-1, -1), 11),
+                        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+                        ('TOPPADDING', (0, 1), (-1, -1), 6),
+                        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+                        # Sem bordas internas
+                        ('BACKGROUND', (0, 0), (-1, -1), colors.white)
+                    ])
                     
+                    pdf_table.setStyle(table_style)
                     story.append(pdf_table)
                     story.append(Spacer(1, 15))
         
@@ -1516,7 +1159,7 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
         return pdf_content
         
     except Exception as e:
-        print(f"   ❌ Erro no fallback: {str(e)}")
+        print(f"   ❌ Erro no fallback ReportLab: {str(e)}")
         return None
 
 def convert_word_to_pdf_com_robust(docx_path, pdf_path):
