@@ -1322,10 +1322,32 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                     is_underline = run.underline
                     is_italic = run.italic
                     
+                    # Detectar cor da fonte
+                    font_color = None
+                    if hasattr(run.font, 'color') and run.font.color.rgb:
+                        # Converter cor RGB para hex
+                        rgb = run.font.color.rgb
+                        if rgb:
+                            # Converter RGB para hex (formato: RGB(r, g, b))
+                            if isinstance(rgb, str) and rgb.startswith('RGB('):
+                                rgb_values = rgb[4:-1].split(',')
+                                if len(rgb_values) == 3:
+                                    r, g, b = map(int, rgb_values)
+                                    font_color = f"#{r:02x}{g:02x}{b:02x}"
+                    
+                    # Detectar tamanho da fonte
+                    font_size = None
+                    if hasattr(run.font, 'size') and run.font.size:
+                        font_size = run.font.size.pt
+                    
                     # Aplicar formatação baseada no conteúdo e estilo
                     if 'digi' in text.lower() and len(text.strip()) <= 10:
                         # Logo DIGI
                         paragraph_content.append(f'<font color="#0915FF" size="16"><b>{text}</b></font>')
+                    elif font_color and font_color != "#000000":
+                        # Texto com cor personalizada
+                        size_attr = f' size="{font_size}"' if font_size else ""
+                        paragraph_content.append(f'<font color="{font_color}"{size_attr}>{text}</font>')
                     elif is_bold and any(keyword in text.lower() for keyword in ['número', 'iccid', 'numéro', 'número']):
                         # Dados importantes em negrito
                         paragraph_content.append(f'<b>{text}</b>')
@@ -1345,7 +1367,7 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                 # Juntar conteúdo do parágrafo
                 full_text = ''.join(paragraph_content)
                 
-                # Determinar estilo baseado no conteúdo
+                # Determinar estilo baseado no conteúdo e alinhamento
                 if 'digi' in full_text.lower() and len(full_text.strip()) <= 10:
                     # Logo centralizado
                     story.append(Paragraph(full_text, title_style))
@@ -1358,6 +1380,24 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
                     # Cabeçalhos e rodapés
                     story.append(Paragraph(full_text, subtitle_style))
                     story.append(Spacer(1, 10))
+                elif paragraph.alignment == WD_ALIGN_PARAGRAPH.CENTER:
+                    # Texto centralizado
+                    center_style = ParagraphStyle(
+                        'Center',
+                        parent=normal_style,
+                        alignment=1  # Centralizado
+                    )
+                    story.append(Paragraph(full_text, center_style))
+                    story.append(Spacer(1, 6))
+                elif paragraph.alignment == WD_ALIGN_PARAGRAPH.RIGHT:
+                    # Texto alinhado à direita
+                    right_style = ParagraphStyle(
+                        'Right',
+                        parent=normal_style,
+                        alignment=2  # Direita
+                    )
+                    story.append(Paragraph(full_text, right_style))
+                    story.append(Spacer(1, 6))
                 else:
                     # Texto normal
                     story.append(Paragraph(full_text, normal_style))
@@ -1368,35 +1408,63 @@ def convert_word_to_pdf_fallback(docx_path, pdf_path):
             if table.rows:
                 # Criar tabela no PDF
                 table_data = []
-                for row in table.rows:
+                has_header = False
+                
+                for i, row in enumerate(table.rows):
                     row_data = []
                     for cell in row.cells:
-                        cell_text = cell.text.strip()
-                        if cell_text:
-                            row_data.append(cell_text)
-                        else:
-                            row_data.append('')
+                        # Processar formatação das células
+                        cell_content = []
+                        for run in cell.paragraphs[0].runs:
+                            if run.underline:
+                                cell_content.append(f'<u>{run.text}</u>')
+                            elif run.bold:
+                                cell_content.append(f'<b>{run.text}</b>')
+                            else:
+                                cell_content.append(run.text)
+                        
+                        cell_text = ''.join(cell_content).strip()
+                        row_data.append(cell_text)
+                        
+                        # Detectar se é cabeçalho (primeira linha com texto sublinhado)
+                        if i == 0 and any(run.underline for run in cell.paragraphs[0].runs):
+                            has_header = True
+                    
                     if row_data:  # Só adicionar se a linha não estiver vazia
                         table_data.append(row_data)
                 
                 if table_data:
                     # Criar tabela no PDF
                     pdf_table = Table(table_data)
-                    pdf_table.setStyle(TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0915FF')),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 12),
-                        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-                        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                        ('FONTSIZE', (0, 1), (-1, -1), 10),
-                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ]))
+                    
+                    if has_header:
+                        # Tabela com cabeçalho formatado
+                        pdf_table.setStyle(TableStyle([
+                            # Cabeçalho da tabela
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0915FF')),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                            ('FONTSIZE', (0, 0), (-1, 0), 12),
+                            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                            # Corpo da tabela
+                            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                            ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+                            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                            ('FONTSIZE', (0, 1), (-1, -1), 11),
+                            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#0915FF')),
+                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F0F8FF')])
+                        ]))
+                    else:
+                        # Tabela simples
+                        pdf_table.setStyle(TableStyle([
+                            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                            ('FONTSIZE', (0, 0), (-1, -1), 11),
+                            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                            ('BACKGROUND', (0, 0), (-1, -1), colors.white)
+                        ]))
+                    
                     story.append(pdf_table)
                     story.append(Spacer(1, 15))
         
