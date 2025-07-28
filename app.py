@@ -98,19 +98,15 @@ def allowed_template_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_TEMPLATE_EXTENSIONS
 
 # Template padrão da carta (fallback)
-DEFAULT_TEMPLATE = """[NOME]
-[CIDADE]
+DEFAULT_TEMPLATE = """Prezado Cliente,
 
-[IDADE]
-[PROFISSAO]
-[SALARIO]
+Este é o seu número: [NUMERO]
+E o seu ICCID: [ICCID]
 
-Prezado Senhor / Senhora,
+Agradecemos sua preferência.
 
-Espero que esta carta o encontre bem. Eu queria escrever para você para [DEPARTAMENTO]. Eu sinto que é importante compartilhar meus pensamentos sobre este assunto.
-
-Com os melhores cumprimentos,
-[NOME]"""
+Atenciosamente,
+Equipe de Atendimento"""
 
 @app.route('/api/health')
 def health_check():
