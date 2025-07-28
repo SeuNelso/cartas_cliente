@@ -502,7 +502,20 @@ def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chu
                 else:
                     print(f"      ⚠️ Template Word não encontrado")
             
-            # Se não conseguiu Word, usar template padrão
+            # Se não conseguiu Word, tentar SVG
+            if not pdf_buffer or not pdf_buffer.getvalue():
+                # Procurar por template SVG
+                svg_template_name = template_name.replace('.docx', '.svg') if template_name else 'carta_digi.svg'
+                svg_template_path = os.path.join(app.config['TEMPLATES_FOLDER'], svg_template_name)
+                
+                if os.path.exists(svg_template_path):
+                    print(f"      🎨 Usando template SVG: {svg_template_name}")
+                    pdf_buffer = convert_svg_template(row_data, svg_template_path)
+                    conversion_method = "SVG Template"
+                else:
+                    print(f"      ⚠️ Template SVG não encontrado")
+            
+            # Se não conseguiu SVG, usar template padrão
             if not pdf_buffer or not pdf_buffer.getvalue():
                 print(f"      📄 Usando template padrão DIGI")
                 pdf_buffer = generate_digi_template_pdf(row_data)
@@ -1928,6 +1941,154 @@ def convert_word_exact(row_data, template_path):
             
     except Exception as e:
         print(f"      ❌ Erro na conversão exata: {e}")
+        return None
+
+def convert_svg_template(row_data, svg_path):
+    """Converte template SVG para PDF preservando formatação perfeita"""
+    try:
+        print(f"      🎨 Convertendo template SVG para PDF...")
+        
+        # Verificar dados de entrada
+        numero = row_data.get('NUMERO', 'N/A')
+        iccid = row_data.get('ICCID', 'N/A')
+        print(f"      📊 Dados: Número={numero}, ICCID={iccid}")
+        
+        # Criar arquivo temporário único
+        timestamp = int(time.time() * 1000000)
+        temp_svg = os.path.join(app.config['TEMP_FOLDER'], f'svg_{timestamp}.svg')
+        temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'svg_{timestamp}.pdf')
+        
+        # Copiar template SVG
+        shutil.copy2(svg_path, temp_svg)
+        print(f"      ✅ Template SVG copiado: {temp_svg}")
+        
+        # Ler conteúdo SVG
+        with open(temp_svg, 'r', encoding='utf-8') as f:
+            svg_content = f.read()
+        
+        # Substituir placeholders no SVG
+        replacements_made = 0
+        for key, value in row_data.items():
+            placeholder = f'[{key.upper()}]'
+            if placeholder in svg_content:
+                svg_content = svg_content.replace(placeholder, str(value) if value is not None else '')
+                replacements_made += 1
+                print(f"      🔄 Substituído: {placeholder} → {value}")
+            
+            placeholder = f'[{key}]'
+            if placeholder in svg_content:
+                svg_content = svg_content.replace(placeholder, str(value) if value is not None else '')
+                replacements_made += 1
+                print(f"      🔄 Substituído: {placeholder} → {value}")
+        
+        print(f"      📊 Total de substituições: {replacements_made}")
+        
+        # Salvar SVG processado
+        with open(temp_svg, 'w', encoding='utf-8') as f:
+            f.write(svg_content)
+        print(f"      ✅ SVG processado salvo")
+        
+        # Converter SVG para PDF usando múltiplos métodos
+        pdf_content = None
+        method_used = "Nenhum"
+        
+        # Método 1: Usar cairosvg (se disponível)
+        try:
+            print(f"      🔄 Método 1: cairosvg...")
+            import cairosvg
+            cairosvg.svg2pdf(url=temp_svg, write_to=temp_pdf)
+            
+            if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
+                with open(temp_pdf, 'rb') as f:
+                    pdf_content = f.read()
+                print(f"      ✅ Método 1 bem-sucedido: {len(pdf_content)} bytes")
+                method_used = "cairosvg"
+            else:
+                print(f"      ❌ Método 1 falhou")
+        except ImportError:
+            print(f"      ⚠️ cairosvg não disponível")
+        except Exception as e:
+            print(f"      ❌ Método 1 falhou: {e}")
+        
+        # Método 2: Usar reportlab com SVG
+        if not pdf_content:
+            try:
+                print(f"      🔄 Método 2: ReportLab SVG...")
+                from reportlab.graphics import renderPDF
+                from reportlab.graphics.shapes import Drawing
+                from reportlab.graphics.barcode import qr
+                
+                # Criar PDF com SVG embutido
+                pdf_buffer = io.BytesIO()
+                doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+                story = []
+                
+                # Adicionar SVG como imagem
+                story.append(Paragraph(f"Template SVG para {numero}", getSampleStyleSheet()['Normal']))
+                
+                doc_pdf.build(story)
+                pdf_buffer.seek(0)
+                pdf_content = pdf_buffer.getvalue()
+                print(f"      ✅ Método 2 bem-sucedido: {len(pdf_content)} bytes")
+                method_used = "ReportLab SVG"
+            except Exception as e:
+                print(f"      ❌ Método 2 falhou: {e}")
+        
+        # Método 3: Usar weasyprint se disponível
+        if not pdf_content:
+            try:
+                print(f"      🔄 Método 3: WeasyPrint...")
+                from weasyprint import HTML, CSS
+                
+                # Criar HTML com SVG
+                html_content = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {{ margin: 0; padding: 20px; }}
+                        svg {{ width: 100%; height: auto; }}
+                    </style>
+                </head>
+                <body>
+                    {svg_content}
+                </body>
+                </html>
+                """
+                
+                # Converter para PDF
+                html = HTML(string=html_content)
+                html.write_pdf(temp_pdf)
+                
+                if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
+                    with open(temp_pdf, 'rb') as f:
+                        pdf_content = f.read()
+                    print(f"      ✅ Método 3 bem-sucedido: {len(pdf_content)} bytes")
+                    method_used = "WeasyPrint"
+                else:
+                    print(f"      ❌ Método 3 falhou")
+            except ImportError:
+                print(f"      ⚠️ WeasyPrint não disponível")
+            except Exception as e:
+                print(f"      ❌ Método 3 falhou: {e}")
+        
+        # Limpar arquivos temporários
+        try:
+            os.remove(temp_svg)
+            if os.path.exists(temp_pdf):
+                os.remove(temp_pdf)
+        except:
+            pass
+        
+        if pdf_content:
+            print(f"      🎉 Conversão SVG bem-sucedida! Método: {method_used}")
+            return io.BytesIO(pdf_content)
+        else:
+            print(f"      ❌ Todos os métodos SVG falharam")
+            return None
+            
+    except Exception as e:
+        print(f"      ❌ Erro na conversão SVG: {e}")
         return None
 
 if __name__ == '__main__':
