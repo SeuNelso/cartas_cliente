@@ -2,11 +2,9 @@ services:
   - type: web
     name: carta-automatica
     env: python
-    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.18
-      - key: FLASK_ENV
-        value: production 
+        value: 3.11.7 

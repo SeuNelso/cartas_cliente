@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carta-automatica"
+version = "1.0.0"
+description = "Sistema de Cartas Automáticas com Templates SVG"
+requires-python = ">=3.8,<3.12"
+dependencies = [
+    "Flask==2.3.3",
+    "pandas==1.5.3",
+    "openpyxl==3.1.2",
+    "cairosvg==2.7.1",
+    "PyPDF2==3.0.1",
+    "Werkzeug==2.3.7",
+    "gunicorn==21.2.0",
+]
+
+[tool.setuptools]
+packages = ["app"] 

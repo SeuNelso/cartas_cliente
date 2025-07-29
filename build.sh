@@ -1,15 +1,18 @@
 #!/bin/bash
 
-echo "🚀 Iniciando build da aplicação..."
+echo "🚀 Iniciando build da aplicação no Render.co..."
 
 # Verificar se estamos no ambiente correto
 echo "📋 Verificando ambiente..."
 python --version
 pip --version
 
+# Atualizar pip
+echo "📦 Atualizando pip..."
+pip install --upgrade pip setuptools wheel
+
 # Instalar dependências
 echo "📦 Instalando dependências..."
-pip install --upgrade pip
 pip install -r requirements.txt
 
 # Verificar se as dependências foram instaladas corretamente
@@ -20,4 +23,4 @@ python -c "import openpyxl; print('openpyxl OK')"
 python -c "from cairosvg import svg2pdf; print('cairosvg OK')"
 python -c "from PyPDF2 import PdfMerger; print('PyPDF2 OK')"
 
-echo "🎉 Build concluído com sucesso!" 
+echo "🎉 Build concluído com sucesso no Render.co!" 
