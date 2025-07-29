@@ -12,9 +12,10 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements e instalar dependências Python
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copiar script de build e executar
+COPY build.sh .
+RUN chmod +x build.sh
+RUN ./build.sh
 
 # Copiar código da aplicação
 COPY app.py .
