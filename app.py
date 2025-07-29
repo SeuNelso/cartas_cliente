@@ -18,7 +18,7 @@ if python_version.major < 3 or (python_version.major == 3 and python_version.min
     sys.exit(1)
 
 print(f"✅ Python {python_version.major}.{python_version.minor}.{python_version.micro} detectado")
-print(f"✅ Compatível com pandas 2.0.3")
+print(f"✅ Compatível com pandas 2.1.4")
 print(f"✅ Versão Python 3.13.4 configurada")
 
 # SVG processing
