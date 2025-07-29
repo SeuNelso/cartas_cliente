@@ -12,12 +12,12 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements mínimos e instalar
-COPY requirements_minimal.txt requirements.txt
+# Copiar requirements e instalar
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código da aplicação (versão sem pandas)
-COPY app_minimal.py app.py
+# Copiar código da aplicação
+COPY app.py .
 COPY templates/ templates/
 
 # Criar pastas necessárias

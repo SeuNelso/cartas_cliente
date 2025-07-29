@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template, send_file
-import pandas as pd
+import openpyxl
 import os
 import uuid
 import threading
@@ -27,6 +27,29 @@ for folder in [UPLOAD_FOLDER, TEMPLATE_FOLDER, TEMP_FOLDER]:
 # Jobs em andamento
 jobs = {}
 
+def read_excel_with_openpyxl(filepath):
+    """Lê arquivo Excel usando openpyxl em vez de pandas"""
+    workbook = openpyxl.load_workbook(filepath)
+    sheet = workbook.active
+    
+    # Obter cabeçalhos (primeira linha)
+    headers = []
+    for cell in sheet[1]:
+        if cell.value:
+            headers.append(str(cell.value))
+    
+    # Obter dados
+    data = []
+    for row in sheet.iter_rows(min_row=2):
+        row_data = {}
+        for i, cell in enumerate(row):
+            if i < len(headers):
+                row_data[headers[i]] = cell.value
+        if any(row_data.values()):  # Só adicionar se a linha não estiver vazia
+            data.append(row_data)
+    
+    return headers, data
+
 def replace_placeholders(svg_content, row_data, selected_columns):
     """
     Substitui placeholders no SVG usando diferentes formatos
@@ -34,7 +57,7 @@ def replace_placeholders(svg_content, row_data, selected_columns):
     current_svg = svg_content
     
     for column in selected_columns:
-        if column not in row_data or pd.isna(row_data[column]):
+        if column not in row_data or row_data[column] is None:
             value = ''
         else:
             value = str(row_data[column])
@@ -93,17 +116,16 @@ def upload_excel():
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
         
-        # Ler dados do Excel
-        df = pd.read_excel(filepath)
-        columns = df.columns.tolist()
+        # Ler dados do Excel usando openpyxl
+        columns, data = read_excel_with_openpyxl(filepath)
         
         return jsonify({
             'message': 'Arquivo Excel carregado com sucesso',
             'filename': filename,
             'columns': columns,
-            'rows': len(df)
+            'rows': len(data)
         })
-        
+    
     except Exception as e:
         return jsonify({'error': f'Erro ao processar arquivo: {str(e)}'}), 500
 
@@ -114,22 +136,22 @@ def upload_template():
             return jsonify({'error': 'Nenhum arquivo enviado'}), 400
         
         file = request.files['template']
-    if file.filename == '':
-        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
-    
+        if file.filename == '':
+            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+        
         if not file.filename.endswith('.svg'):
             return jsonify({'error': 'Apenas arquivos SVG são permitidos'}), 400
         
         filename = secure_filename(file.filename)
         filepath = os.path.join(TEMPLATE_FOLDER, filename)
         file.save(filepath)
-            
-            return jsonify({
+        
+        return jsonify({
             'message': 'Template SVG carregado com sucesso',
-                'filename': filename
-            })
+            'filename': filename
+        })
     
-        except Exception as e:
+    except Exception as e:
         return jsonify({'error': f'Erro ao processar template: {str(e)}'}), 500
 
 @app.route('/api/generate-pdfs', methods=['POST'])
@@ -144,21 +166,21 @@ def generate_pdfs():
             return jsonify({'error': 'Arquivo Excel e template são obrigatórios'}), 400
         
         # Gerar ID único para o job
-            job_id = str(uuid.uuid4())
+        job_id = str(uuid.uuid4())
         
         # Iniciar job em background
-            thread = threading.Thread(
+        thread = threading.Thread(
             target=process_pdf_generation,
             args=(job_id, excel_file, template_file, selected_columns)
-            )
-            thread.daemon = True
-            thread.start()
-            
-            return jsonify({
+        )
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
             'message': 'Geração de PDFs iniciada',
             'job_id': job_id
-            })
-            
+        })
+    
     except Exception as e:
         return jsonify({'error': f'Erro ao iniciar geração: {str(e)}'}), 500
 
@@ -166,9 +188,9 @@ def process_pdf_generation(job_id, excel_file, template_file, selected_columns):
     try:
         jobs[job_id] = {'status': 'processing', 'progress': 0, 'message': 'Iniciando processamento...'}
         
-        # Ler dados do Excel
+        # Ler dados do Excel usando openpyxl
         excel_path = os.path.join(UPLOAD_FOLDER, excel_file)
-        df = pd.read_excel(excel_path)
+        columns, data = read_excel_with_openpyxl(excel_path)
         
         # Ler template SVG
         template_path = os.path.join(TEMPLATE_FOLDER, template_file)
@@ -176,15 +198,15 @@ def process_pdf_generation(job_id, excel_file, template_file, selected_columns):
             svg_content = f.read()
         
         jobs[job_id]['progress'] = 10
-        jobs[job_id]['message'] = f'Processando {len(df)} registros...'
+        jobs[job_id]['message'] = f'Processando {len(data)} registros...'
         
         # Lista para armazenar PDFs gerados
         pdf_files = []
         
-        for index, row in df.iterrows():
+        for index, row_data in enumerate(data):
             try:
                 # Substituir placeholders no SVG usando a função melhorada
-                current_svg = replace_placeholders(svg_content, row, selected_columns)
+                current_svg = replace_placeholders(svg_content, row_data, selected_columns)
                 
                 # Gerar PDF temporário
                 temp_svg = os.path.join(TEMP_FOLDER, f'temp_{index}.svg')
@@ -196,15 +218,15 @@ def process_pdf_generation(job_id, excel_file, template_file, selected_columns):
                 # Converter SVG para PDF
                 svg2pdf(url=temp_svg, write_to=temp_pdf)
                 pdf_files.append(temp_pdf)
-                    
-                    # Atualizar progresso
-                progress = 10 + int((index + 1) / len(df) * 80)
+                
+                # Atualizar progresso
+                progress = 10 + int((index + 1) / len(data) * 80)
                 jobs[job_id]['progress'] = progress
-                jobs[job_id]['message'] = f'Processado {index + 1} de {len(df)} registros'
-                    
-                except Exception as e:
+                jobs[job_id]['message'] = f'Processado {index + 1} de {len(data)} registros'
+                
+            except Exception as e:
                 print(f"Erro ao processar linha {index}: {e}")
-                    continue
+                continue
         
         # Mesclar PDFs
         jobs[job_id]['message'] = 'Mesclando PDFs...'
@@ -222,9 +244,9 @@ def process_pdf_generation(job_id, excel_file, template_file, selected_columns):
         for pdf_file in pdf_files:
             try:
                 os.remove(pdf_file)
-        except:
-            pass
-
+            except:
+                pass
+        
         jobs[job_id]['status'] = 'completed'
         jobs[job_id]['progress'] = 100
         jobs[job_id]['message'] = 'PDFs gerados com sucesso!'
@@ -251,17 +273,6 @@ def download_pdf(job_id):
         return jsonify({'error': 'Arquivo não encontrado'}), 404
     
     return send_file(pdf_path, as_attachment=True, download_name='cartas_geradas.pdf')
-
-@app.route('/api/templates')
-def get_templates():
-    try:
-        templates = []
-        for filename in os.listdir(TEMPLATE_FOLDER):
-            if filename.endswith('.svg'):
-                templates.append(filename)
-        return jsonify({'templates': templates})
-    except Exception as e:
-        return jsonify({'error': f'Erro ao listar templates: {str(e)}'}), 500
 
 @app.route('/api/detect-placeholders', methods=['POST'])
 def detect_placeholders():
@@ -307,7 +318,7 @@ def detect_placeholders():
             'detected_placeholders': detected_placeholders,
             'total_placeholders': len(detected_placeholders)
         })
-            
+        
     except Exception as e:
         return jsonify({'error': f'Erro ao detectar placeholders: {str(e)}'}), 500
 
@@ -338,7 +349,7 @@ def test_placeholders():
             (r'\{([^}]+)\}', '{coluna}'),
             (r'%([^%]+)%', '%coluna%'),
             (r'\$([^$]+)\$', '$coluna$'),
-            (r'#{column}#', '#coluna#'),
+            (r'#([^#]+)#', '#coluna#'),
             (r'<tspan[^>]*>\s*([^<]+)\s*</tspan>', '<tspan>coluna</tspan>'),
             (r'<text[^>]*>\s*([^<]+)\s*</text>', '<text>coluna</text>')
         ]
@@ -354,7 +365,7 @@ def test_placeholders():
             'total_placeholders': sum(len(placeholders) for placeholders in detected_placeholders.values())
         })
         
-                    except Exception as e:
+    except Exception as e:
         return jsonify({'error': f'Erro ao testar placeholders: {str(e)}'}), 500
 
 if __name__ == '__main__':
