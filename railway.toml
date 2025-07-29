@@ -1,11 +1,7 @@
 [build]
-builder = "nixpacks"
+builder = "dockerfile"
 
 [deploy]
 startCommand = "gunicorn app:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --timeout 120 --log-level info"
 healthcheckPath = "/health"
-healthcheckTimeout = 120
-
-[env]
-PYTHON_VERSION = "3.11.7"
-PYTHONPATH = "/usr/local/lib/python3.11/site-packages" 
+healthcheckTimeout = 120 

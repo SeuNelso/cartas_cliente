@@ -12,7 +12,7 @@ pip install --upgrade pip setuptools wheel
 # Instalar dependências com versões específicas
 echo "📦 Instalando dependências..."
 pip install Flask==2.3.3
-pip install pandas==1.5.3
+pip install pandas==2.2.0
 pip install openpyxl==3.1.2
 pip install cairosvg==2.8.0
 pip install PyPDF2==3.0.1
