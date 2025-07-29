@@ -6,7 +6,12 @@ COPY requirements_minimal.txt .
 RUN pip install -r requirements_minimal.txt
 
 COPY app_minimal.py .
+COPY start.sh .
+
+# Tornar o script executável
+RUN chmod +x start.sh
 
 EXPOSE 8080
 
-CMD gunicorn app_minimal:app --bind 0.0.0.0:$PORT 
+# Usar o script de inicialização
+CMD ["./start.sh"] 
