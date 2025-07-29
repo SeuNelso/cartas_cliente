@@ -1,29 +1,25 @@
-# 🚂 Deploy no Railway - Configuração Docker
+# 🚂 Deploy no Railway - Configuração Simplificada
 
-## 🎯 **Configuração Railway com Docker**
+## 🎯 **Configuração Railway Simplificada**
 
 ### 📋 **Arquivos de Configuração:**
 
-1. **railway.json** - Configuração principal do Railway
+1. **railway.toml** - Configuração principal do Railway
 2. **Dockerfile** - Build com Docker
 3. **Procfile** - Comando de inicialização
-4. **.dockerignore** - Otimização do build
-5. **.railwayignore** - Arquivos ignorados no deploy
+4. **runtime.txt** - Versão do Python
+5. **.dockerignore** - Otimização do build
 
 ### 🔧 **Configuração Atual:**
 
-```json
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "DOCKERFILE"
-  },
-  "deploy": {
-    "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT",
-    "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 300
-  }
-}
+```toml
+[build]
+builder = "dockerfile"
+
+[deploy]
+startCommand = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120"
+healthcheckPath = "/ping"
+healthcheckTimeout = 300
 ```
 
 ### 🐳 **Dockerfile:**
@@ -50,10 +46,10 @@ COPY . .
 RUN mkdir -p uploads templates_word temp
 
 # Expor porta
-EXPOSE $PORT
+EXPOSE 8080
 
 # Comando de inicialização
-CMD gunicorn app:app --bind 0.0.0.0:$PORT
+CMD gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
 ```
 
 ### 📦 **Dependências:**
@@ -101,9 +97,9 @@ gunicorn==21.2.0
 
 1. **Docker**: Build isolado e reproduzível
 2. **Python 3.11**: Versão estável e compatível
-3. **Dependências do sistema**: GCC/G++ para compilação
-4. **Health checks**: Verificação automática de saúde
-5. **Logs**: Logs detalhados e em tempo real
+3. **Workers limitados**: 1 worker para evitar problemas
+4. **Timeout aumentado**: 120 segundos para processamento
+5. **Healthcheck simples**: `/ping` para verificação
 
 ### 🎉 **Resultado Esperado:**
 
@@ -112,4 +108,4 @@ gunicorn==21.2.0
 - ✅ Sem problemas de dependências do sistema
 - ✅ Deploy rápido e estável
 
-**Esta configuração deve resolver os problemas do Railway!** 🚂 
+**Esta configuração simplificada deve resolver todos os problemas!** 🚂 

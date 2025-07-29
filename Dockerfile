@@ -19,7 +19,7 @@ COPY . .
 RUN mkdir -p uploads templates_word temp
 
 # Expor porta
-EXPOSE $PORT
+EXPOSE 8080
 
 # Comando de inicialização
-CMD gunicorn app:app --bind 0.0.0.0:$PORT 
+CMD gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 

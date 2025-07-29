@@ -78,12 +78,23 @@ def allowed_template_file(filename):
 @app.route('/api/health')
 def health_check():
     """Endpoint de verificação de saúde da aplicação"""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'active_jobs': len([j for j in jobs.values() if j['status'] == 'processing']),
-        'version': '3.0.0-svg-only'
-    })
+    try:
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'active_jobs': len([j for j in jobs.values() if j['status'] == 'processing']),
+            'version': '3.0.0-svg-only',
+            'python_version': f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            'svg_available': SVG_AVAILABLE,
+            'pdf_merge_available': PDF_MERGE_AVAILABLE
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/test')
+def test():
+    """Endpoint de teste simples"""
+    return "OK"
 
 @app.route('/api/status')
 def system_status():
@@ -98,7 +109,7 @@ def system_status():
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)})
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/')
 def index():
@@ -116,6 +127,11 @@ def index():
         return render_template('index.html', svg_templates=svg_templates)
     except Exception as e:
         return f"Erro ao carregar página: {str(e)}"
+
+@app.route('/ping')
+def ping():
+    """Endpoint de ping simples"""
+    return "pong"
 
 @app.route('/api/upload-template', methods=['POST'])
 def upload_template():
@@ -547,6 +563,11 @@ if __name__ == '__main__':
     print(f"🔧 Debug mode: {debug}")
     print(f"📦 SVG disponível: {SVG_AVAILABLE}")
     print(f"📦 PDF Merge disponível: {PDF_MERGE_AVAILABLE}")
+    print(f"🐍 Python version: {sys.version}")
+    print(f"📁 Working directory: {os.getcwd()}")
+    print(f"📁 Uploads folder: {app.config['UPLOADS_FOLDER']}")
+    print(f"📁 Templates folder: {app.config['TEMPLATES_FOLDER']}")
+    print(f"📁 Temp folder: {app.config['TEMP_FOLDER']}")
     
     app.run(
         host='0.0.0.0',
