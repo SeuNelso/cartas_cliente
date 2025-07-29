@@ -18,7 +18,8 @@ if python_version.major < 3 or (python_version.major == 3 and python_version.min
     sys.exit(1)
 
 print(f"✅ Python {python_version.major}.{python_version.minor}.{python_version.micro} detectado")
-print(f"✅ Compatível com pandas 1.5.3")
+print(f"✅ Compatível com pandas 2.0.3")
+print(f"✅ Render.com escolheu esta versão automaticamente")
 
 # SVG processing
 try:
@@ -51,7 +52,7 @@ app = Flask(__name__)
 app.config['UPLOADS_FOLDER'] = 'uploads'
 app.config['TEMPLATES_FOLDER'] = 'templates_word'
 app.config['TEMP_FOLDER'] = 'temp'
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
+app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', 50 * 1024 * 1024))  # 50MB padrão
 
 # Criar pastas necessárias
 os.makedirs(app.config['UPLOADS_FOLDER'], exist_ok=True)
@@ -62,8 +63,8 @@ os.makedirs(app.config['TEMP_FOLDER'], exist_ok=True)
 jobs = {}
 
 # Configurações da aplicação
-app.config['SECRET_KEY'] = 'sua_chave_secreta_aqui'
-app.config['MAX_WORKERS'] = 4
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'sua_chave_secreta_aqui')
+app.config['MAX_WORKERS'] = int(os.environ.get('MAX_WORKERS', 4))
 
 ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 ALLOWED_TEMPLATE_EXTENSIONS = {'svg'}
