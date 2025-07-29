@@ -1,0 +1,19 @@
+[phases.setup]
+nixPkgs = ["python311", "gcc", "g++", "libcairo2-dev", "libpango1.0-dev", "libgdk-pixbuf2.0-dev", "libffi-dev"]
+
+[phases.install]
+cmds = [
+    "pip install --upgrade pip setuptools wheel",
+    "pip install pandas==1.5.3",
+    "pip install Flask==2.3.3 openpyxl==3.1.2 cairosvg==2.8.0 PyPDF2==3.0.1 Werkzeug==2.3.7 gunicorn==21.2.0"
+]
+
+[phases.build]
+cmds = [
+    "python -c \"import pandas; print(f'pandas {pandas.__version__} OK')\"",
+    "python -c \"import flask; print(f'Flask {flask.__version__} OK')\"",
+    "python -c \"from cairosvg import svg2pdf; print('cairosvg OK')\""
+]
+
+[start]
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info" 
