@@ -12,9 +12,15 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Limpar cache do pip
+RUN pip cache purge
+
 # Copiar requirements e instalar
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --force-reinstall -r requirements.txt
+
+# Verificar que pandas NÃO está instalado
+RUN python -c "import sys; assert 'pandas' not in sys.modules, 'pandas ainda está instalado!'; print('✅ pandas NÃO está instalado')"
 
 # Copiar código da aplicação
 COPY app.py .
