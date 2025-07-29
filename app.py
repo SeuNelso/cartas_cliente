@@ -75,6 +75,22 @@ def allowed_file(filename):
 def allowed_template_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_TEMPLATE_EXTENSIONS
 
+# Endpoint de teste muito simples
+@app.route('/')
+def root():
+    """Endpoint root muito simples"""
+    return "OK"
+
+@app.route('/ping')
+def ping():
+    """Endpoint de ping simples"""
+    return "pong"
+
+@app.route('/test')
+def test():
+    """Endpoint de teste simples"""
+    return "test OK"
+
 @app.route('/api/health')
 def health_check():
     """Endpoint de verificação de saúde da aplicação"""
@@ -90,11 +106,6 @@ def health_check():
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/test')
-def test():
-    """Endpoint de teste simples"""
-    return "OK"
 
 @app.route('/api/status')
 def system_status():
@@ -127,11 +138,6 @@ def index():
         return render_template('index.html', svg_templates=svg_templates)
     except Exception as e:
         return f"Erro ao carregar página: {str(e)}"
-
-@app.route('/ping')
-def ping():
-    """Endpoint de ping simples"""
-    return "pong"
 
 @app.route('/api/upload-template', methods=['POST'])
 def upload_template():
