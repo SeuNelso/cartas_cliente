@@ -2,45 +2,29 @@ from flask import Flask, render_template, request, jsonify, send_file
 import pandas as pd
 import os
 from werkzeug.utils import secure_filename
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
-import io
-import tempfile
-import zipfile
-from datetime import datetime
-from docx import Document
-import re
-from docx2pdf import convert
-import shutil
 import uuid
 import json
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
-from functools import lru_cache
-import sys
+from datetime import datetime
+import shutil
+import re
 
-# Windows-specific imports (only if available)
+# SVG processing
 try:
-    import pythoncom
-    import win32com.client
-    WINDOWS_AVAILABLE = True
+    from cairosvg import svg2pdf
+    SVG_AVAILABLE = True
 except ImportError:
-    WINDOWS_AVAILABLE = False
-    print("⚠️ Windows dependencies not available - Word conversion will use fallback methods")
+    SVG_AVAILABLE = False
+    print("⚠️ cairosvg not available - SVG processing disabled")
 
-# Linux-compatible Word processing
+# PDF merging
 try:
-    from docx import Document
-    from docx.shared import Inches, Pt
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    DOCX_AVAILABLE = True
+    from PyPDF2 import PdfMerger
+    PDF_MERGE_AVAILABLE = True
 except ImportError:
-    DOCX_AVAILABLE = False
-    print("⚠️ python-docx not available - using basic text conversion")
+    PDF_MERGE_AVAILABLE = False
+    print("⚠️ PyPDF2 not available - PDF merging disabled")
 
 # Configurações globais
 app = Flask(__name__)
@@ -56,18 +40,13 @@ os.makedirs(app.config['TEMP_FOLDER'], exist_ok=True)
 
 # Variáveis globais para controle de jobs
 jobs = {}
-progress_tracker = {}
-job_start_times = {}
-current_jobs = set()
 
 # Configurações da aplicação
 app.config['SECRET_KEY'] = 'sua_chave_secreta_aqui'
-app.config['TIMEOUT_SECONDS'] = 0  # Sem timeout
-app.config['MAX_WORKERS'] = 8  # Mais workers para Render
-app.config['CHUNK_SIZE'] = 5   # Chunks maiores para Render
+app.config['MAX_WORKERS'] = 4
 
 ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
-ALLOWED_TEMPLATE_EXTENSIONS = {'docx'}
+ALLOWED_TEMPLATE_EXTENSIONS = {'svg'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -75,2149 +54,481 @@ def allowed_file(filename):
 def allowed_template_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_TEMPLATE_EXTENSIONS
 
-# Não há template padrão - deve usar apenas template importado
-DEFAULT_TEMPLATE = None
-
 @app.route('/api/health')
 def health_check():
     """Endpoint de verificação de saúde da aplicação"""
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
-        'active_jobs': len(current_jobs),
-        'workers': app.config['MAX_WORKERS'],
-        'version': '1.0.0'
+        'active_jobs': len([j for j in jobs.values() if j['status'] == 'processing']),
+        'version': '3.0.0-svg-only'
     })
 
 @app.route('/api/status')
 def system_status():
-    """Endpoint para verificar status do sistema e se está pronto para próximo lote"""
+    """Endpoint para verificar status do sistema"""
     try:
-        # Verificar se há jobs ativos
-        active_jobs = len([job for job in progress_tracker.values() if job['status'] == 'processing'])
-        
-        # Verificar espaço em disco
-        temp_folder = app.config['TEMP_FOLDER']
-        disk_usage = 0
-        if os.path.exists(temp_folder):
-            for filename in os.listdir(temp_folder):
-                file_path = os.path.join(temp_folder, filename)
-                if os.path.isfile(file_path):
-                    disk_usage += os.path.getsize(file_path)
-        
-        # Verificar se sistema está pronto
-        is_ready = active_jobs == 0
+        active_jobs = len([job for job in jobs.values() if job['status'] == 'processing'])
         
         return jsonify({
-            'status': 'ready' if is_ready else 'busy',
+            'status': 'ready',
             'active_jobs': active_jobs,
-            'total_jobs': len(progress_tracker),
-            'disk_usage_mb': round(disk_usage / (1024 * 1024), 2),
-            'workers': app.config['MAX_WORKERS'],
-            'chunk_size': app.config['CHUNK_SIZE'],
-            'ready_for_next_batch': is_ready,
-            'message': 'Sistema pronto para próximo lote!' if is_ready else f'{active_jobs} job(s) em processamento'
+            'total_jobs': len(jobs),
+            'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'error': str(e)
-        }), 500
+        return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/')
 def index():
-    """Página principal do sistema"""
+    """Página principal"""
     try:
-        # Listar templates Word disponíveis
+        # Listar templates SVG disponíveis
         templates_folder = app.config['TEMPLATES_FOLDER']
-        templates = []
         svg_templates = []
         
         if os.path.exists(templates_folder):
-            for file in os.listdir(templates_folder):
-                if file.endswith('.docx'):
-                    templates.append(file)
-                elif file.endswith('.svg'):
-                    svg_templates.append(file)
+            for filename in os.listdir(templates_folder):
+                if filename.lower().endswith('.svg'):
+                    svg_templates.append(filename)
         
-        # Ordenar templates
-        templates.sort()
-        svg_templates.sort()
-        
-        return render_template('index.html', templates=templates, svg_templates=svg_templates)
+        return render_template('index.html', svg_templates=svg_templates)
     except Exception as e:
-        print(f"Erro ao carregar página principal: {e}")
-        return render_template('index.html', templates=[], svg_templates=[])
+        return f"Erro ao carregar página: {str(e)}"
 
 @app.route('/api/upload-template', methods=['POST'])
 def upload_template():
-    if 'template' not in request.files:
-        return jsonify({'error': 'Nenhum arquivo de template selecionado'}), 400
-    
-    file = request.files['template']
-    if file.filename == '':
-        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
-    
-    if file and allowed_template_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['TEMPLATES_FOLDER'], filename)
-        file.save(filepath)
+    """Upload de template SVG"""
+    try:
+        if 'template' not in request.files:
+            return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
         
-        # Limpar cache quando novo template é adicionado
-        template_cache.clear()
+        file = request.files['template']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'}), 400
+        
+        if not allowed_template_file(file.filename):
+            return jsonify({'success': False, 'error': 'Apenas arquivos SVG são permitidos'}), 400
+        
+        filename = secure_filename(file.filename)
+        template_path = os.path.join(app.config['TEMPLATES_FOLDER'], filename)
+        
+        file.save(template_path)
         
         return jsonify({
-            'success': True,
-            'message': f'Template "{filename}" carregado com sucesso!',
-            'filename': filename
+            'success': True, 
+            'filename': filename,
+            'message': 'Template SVG enviado com sucesso'
         })
-    
-    return jsonify({'error': 'Tipo de arquivo não permitido. Use apenas arquivos .docx'}), 400
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
-    
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOADS_FOLDER'], filename)
-        file.save(filepath)
+    """Upload de arquivo Excel"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
         
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': 'Tipo de arquivo não permitido'}), 400
+        
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOADS_FOLDER'], filename)
+        
+        file.save(file_path)
+        
+        # Verificar se o arquivo pode ser lido
         try:
-            # Ler o arquivo Excel
-            df = pd.read_excel(filepath)
-            
-            # Converter para lista de dicionários para JSON
-            data = df.to_dict('records')
-            columns = df.columns.tolist()
-            
+            df = pd.read_excel(file_path)
+            row_count = len(df)
             return jsonify({
                 'success': True,
-                'data': data,
-                'columns': columns,
-                'filename': filename
+                'filename': filename,
+                'row_count': row_count,
+                'message': f'Arquivo enviado com sucesso. {row_count} registros encontrados.'
             })
         except Exception as e:
-            return jsonify({'error': f'Erro ao ler arquivo: {str(e)}'}), 400
-    
-    return jsonify({'error': 'Tipo de arquivo não permitido'}), 400
+            return jsonify({'success': False, 'error': f'Erro ao ler arquivo Excel: {str(e)}'}), 400
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/generate-pdf', methods=['POST'])
 def generate_pdf():
-    """Gerar PDFs a partir dos dados do Excel"""
+    """Gerar PDF com dados do Excel"""
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Dados não fornecidos'}), 400
         
-        if not data or 'data' not in data:
-            return jsonify({'success': False, 'error': 'Dados não fornecidos'})
+        template_name = data.get('template_name')
+        excel_filename = data.get('excel_filename')  # Nome do arquivo Excel enviado
         
-        excel_data = data['data']
-        template_name = data.get('template', '')
-        use_word_template = data.get('useWordTemplate', False)
+        if not template_name:
+            return jsonify({'success': False, 'error': 'Nome do template não fornecido'}), 400
         
-        print(f"📊 Gerando PDFs para {len(excel_data)} registros")
-        print(f"   Template: {template_name}")
-        print(f"   Use Word Template: {use_word_template}")
+        if not excel_filename:
+            return jsonify({'success': False, 'error': 'Nome do arquivo Excel não fornecido'}), 400
         
-        if not excel_data:
-            return jsonify({'success': False, 'error': 'Nenhum dado para processar'})
+        print(f"📄 Template selecionado: {template_name}")
+        print(f"📊 Arquivo Excel selecionado: {excel_filename}")
         
-        # Se apenas um registro, gerar PDF único
-        if len(excel_data) == 1:
-            row_data = excel_data[0]
-            pdf_buffer = None
-            
-            # Tentar SVG primeiro se disponível
-            if template_name and template_name.endswith('.svg'):
-                svg_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
-                if os.path.exists(svg_path):
-                    print(f"   🎨 Usando template SVG: {template_name}")
-                    pdf_buffer = convert_svg_template(row_data, svg_path)
-                    if pdf_buffer:
-                        return send_file(
-                            pdf_buffer,
-                            mimetype='application/pdf',
-                            as_attachment=True,
-                            download_name=f'carta_{row_data.get("NUMERO", "1")}.pdf'
-                        )
-            
-            # Tentar Word template
-            if not pdf_buffer and use_word_template and template_name:
-                template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
-                if os.path.exists(template_path):
-                    print(f"   📄 Usando template Word: {template_name}")
-                    pdf_buffer = convert_word_exact(row_data, template_path)
-            
-            # Fallback para template padrão
-            if not pdf_buffer:
-                print(f"   📄 Usando template padrão DIGI")
-                pdf_buffer = generate_digi_template_pdf(row_data)
-            
-            if pdf_buffer:
-                return send_file(
-                    pdf_buffer,
-                    mimetype='application/pdf',
-                    as_attachment=True,
-                    download_name=f'carta_{row_data.get("NUMERO", "1")}.pdf'
-                )
-            else:
-                return jsonify({'success': False, 'error': 'Erro ao gerar PDF'})
+        # Usar o arquivo Excel específico enviado
+        excel_path = os.path.join(app.config['UPLOADS_FOLDER'], excel_filename)
         
-        # Múltiplos registros - usar processamento em chunks
-        else:
-            # Determinar tipo de template
-            template_type = "word"
-            if template_name and template_name.endswith('.svg'):
-                template_type = "svg"
-            
-            job_id = str(uuid.uuid4())
-            job_data = {
-                'data': excel_data,
-                'template_name': template_name,
-                'use_word_template': use_word_template,
-                'template_type': template_type,
-                'total': len(excel_data),
-                'current': 0,
-                'status': 'processing',
-                'start_time': time.time(),
-                'results': []
-            }
-            
-            jobs[job_id] = job_data
-            
-            # Iniciar processamento em background
-            thread = threading.Thread(
-                target=process_data_in_chunks,
-                args=(job_id, excel_data, template_name, use_word_template, template_type)
-            )
-            thread.daemon = True
-            thread.start()
-            
-            return jsonify({
-                'success': True,
-                'job_id': job_id,
-                'total': len(excel_data)
-            })
-            
-    except Exception as e:
-        print(f"❌ Erro ao gerar PDF: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/progress/<job_id>')
-def get_progress(job_id):
-    """Endpoint para verificar progresso"""
-    try:
-        # Limpar jobs antigos periodicamente
-        cleanup_old_jobs()
+        if not os.path.exists(excel_path):
+            return jsonify({'success': False, 'error': f'Arquivo Excel não encontrado: {excel_filename}'}), 400
         
-        if job_id in progress_tracker:
-            # Atualizar tempo decorrido em tempo real
-            current_time = time.time()
-            job_info = progress_tracker[job_id]
-            
-            if job_info['status'] == 'processing':
-                # Calcular tempo decorrido atual
-                elapsed_time = current_time - job_info['start_time']
-                job_info['elapsed_time'] = elapsed_time
-                
-                # Recalcular tempo restante se há progresso
-                if job_info['current'] > 0:
-                    avg_time_per_pdf = elapsed_time / job_info['current']
-                    remaining_pdfs = job_info['total'] - job_info['current']
-                    estimated_remaining = avg_time_per_pdf * remaining_pdfs
-                    job_info['estimated_time_remaining'] = estimated_remaining
-            
-            return jsonify(job_info)
-        else:
-            return jsonify({'error': 'Job não encontrado'}), 404
-    except Exception as e:
-        print(f"Erro ao verificar progresso do job {job_id}: {e}")
-        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
-
-@app.route('/api/download/<job_id>')
-def download_result(job_id):
-    """Endpoint para baixar resultado final"""
-    if job_id not in progress_tracker:
-        return jsonify({'error': 'Job não encontrado'}), 404
-    
-    job_info = progress_tracker[job_id]
-    if job_info['status'] != 'completed':
-        return jsonify({'error': 'Job ainda não foi concluído'}), 400
-    
-    try:
-        zip_path = job_info.get('zip_path')
-        if not zip_path or not os.path.exists(zip_path):
-            return jsonify({'error': 'Arquivo ZIP não encontrado'}), 404
+        print(f"📊 Usando arquivo Excel: {excel_filename}")
         
-        return send_file(
-            zip_path,
-            as_attachment=True,
-            download_name=f'cartas_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip',
-            mimetype='application/zip'
-        )
-    except Exception as e:
-        return jsonify({'error': f'Erro ao baixar arquivo: {str(e)}'}), 500
-
-def generate_multiple_pdfs_parallel(data_list, template_name, use_word_template, job_id):
-    """Gera múltiplos PDFs usando processamento paralelo otimizado"""
-    try:
-        print(f"🚀 SUPER ULTRA: Gerando {len(data_list)} PDFs")
-        print(f"   Template selecionado: {template_name if template_name else 'DEFAULT'}")
-        print(f"   Usar template Word: {use_word_template}")
-        print(f"   Job ID: {job_id}")
+        # Ler dados do Excel
+        excel_data = pd.read_excel(excel_path).to_dict('records')
+        print(f"📊 Dados lidos do Excel: {len(excel_data)} registros")
+        print(f"📊 Primeiro registro: {excel_data[0] if excel_data else 'Nenhum'}")
         
-        temp_zip_path = os.path.join(app.config['TEMP_FOLDER'], f'result_{job_id}.zip')
+        # Verificar colunas disponíveis
+        if excel_data:
+            columns = list(excel_data[0].keys())
+            print(f"📊 Colunas disponíveis: {columns}")
         
-        # Usar configurações SUPER ULTRA
-        num_workers = app.config['MAX_WORKERS']  # 16 workers
-        chunk_size = app.config['CHUNK_SIZE']    # 5 registros por chunk
-        print(f"   Workers: {num_workers} (SUPER ULTRA)")
-        print(f"   Chunk size: {chunk_size} (SUPER ULTRA)")
-        
-        # Preparar template se necessário
-        if use_word_template and template_name:
-            print(f"   📋 Preparando cache do template: {template_name}")
-            prepare_template_cache(template_name)
-        
-        # Processar cada PDF individualmente para progresso mais preciso
-        pdf_files = []
-        completed_count = 0
-        
-        # Dividir dados em chunks SUPER ULTRA
-        chunks = [data_list[i:i + chunk_size] for i in range(0, len(data_list), chunk_size)]
-        print(f"   Chunks: {len(chunks)} (tamanho: {chunk_size})")
-        
-        with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            # Submeter tarefas por chunk
-            future_to_chunk = {}
-            for i, chunk in enumerate(chunks):
-                print(f"   📦 Submetendo chunk {i} com {len(chunk)} registros")
-                future = executor.submit(
-                    process_chunk_optimized,
-                    chunk, template_name, use_word_template, job_id, i
-                )
-                future_to_chunk[future] = chunk
-            
-            # Coletar resultados e atualizar progresso em tempo real
-            for future in as_completed(future_to_chunk):
-                try:
-                    chunk_files = future.result()
-                    pdf_files.extend(chunk_files)
-                    completed_count += len(chunk_files)
-                    
-                    # Atualizar progresso imediatamente
-                    current_time = time.time()
-                    elapsed_time = current_time - progress_tracker[job_id]['start_time']
-                    
-                    if completed_count > 0:
-                        # Calcular tempo médio por PDF
-                        avg_time_per_pdf = elapsed_time / completed_count
-                        remaining_pdfs = len(data_list) - completed_count
-                        estimated_remaining = avg_time_per_pdf * remaining_pdfs
-                    else:
-                        estimated_remaining = None
-                    
-                    # Calcular taxa de velocidade
-                    if completed_count > 0 and elapsed_time > 0:
-                        rate = completed_count / elapsed_time
-                    else:
-                        rate = 0
-                    
-                    # Atualizar progresso
-                    progress_tracker[job_id]['current'] = completed_count
-                    progress_tracker[job_id]['elapsed_time'] = elapsed_time
-                    progress_tracker[job_id]['estimated_time_remaining'] = estimated_remaining
-                    progress_tracker[job_id]['rate'] = rate
-                    progress_tracker[job_id]['message'] = f'SUPER: {completed_count}/{len(data_list)} PDFs ({rate:.2f}/s)'
-                    
-                    print(f"   ⚡ SUPER Progresso: {completed_count}/{len(data_list)} ({rate:.2f}/s)")
-                    
-                except Exception as e:
-                    print(f"   ❌ Erro no processamento de chunk: {e}")
-                    # Continuar processando outros chunks mesmo se um falhar
-                    continue
-        
-        # Criar ZIP final
-        print(f"   📦 Criando ZIP final...")
-        zip_created = create_final_zip(pdf_files, temp_zip_path)
-        
-        if not zip_created:
-            print(f"   ❌ Falha ao criar ZIP - nenhum arquivo adicionado")
-            progress_tracker[job_id]['status'] = 'error'
-            progress_tracker[job_id]['message'] = 'Erro: Nenhum PDF foi gerado com sucesso'
-            return
-        
-        # Limpar arquivos temporários
-        cleanup_temp_files(pdf_files)
-        
-        # Calcular tempo total
-        total_time = time.time() - progress_tracker[job_id]['start_time']
-        
-        # Atualizar progresso final
-        progress_tracker[job_id]['status'] = 'completed'
-        progress_tracker[job_id]['message'] = f'SUPER Concluído! {len(data_list)} PDFs em {total_time:.1f}s'
-        progress_tracker[job_id]['zip_path'] = temp_zip_path
-        progress_tracker[job_id]['total_time'] = total_time
-        progress_tracker[job_id]['estimated_time_remaining'] = 0
-        
-        print(f"   🎉 SUPER ULTRA: {len(data_list)} PDFs em {total_time:.1f}s")
-        print(f"   🚀 Taxa SUPER: {len(data_list)/total_time:.2f} PDFs/segundo")
-        print(f"   📁 ZIP salvo em: {temp_zip_path}")
-        
-        # Preparar sistema para próximo lote
-        prepare_system_for_next_batch(job_id)
-        
-    except Exception as e:
-        print(f"   ❌ Erro na geração: {e}")
-        progress_tracker[job_id]['status'] = 'error'
-        progress_tracker[job_id]['message'] = f'Erro: {str(e)}'
-
-def process_chunk_optimized(chunk, template_name, use_word_template, job_id, chunk_id):
-    """Processa um chunk de dados com otimizações de velocidade"""
-    pdf_files = []
-    
-    print(f"🔄 Processando chunk {chunk_id} com {len(chunk)} registros")
-    print(f"   Template: {template_name if template_name else 'DEFAULT'}")
-    print(f"   Usar Word: {use_word_template}")
-    
-    for i, row_data in enumerate(chunk):
-        try:
-            nome = row_data.get('NOME', f'registro_{i+1}')
-            numero = row_data.get('NUMERO', f'{i+1:03d}')
-            print(f"   📄 Gerando PDF {i+1}/{len(chunk)} para: {nome} (Número: {numero})")
-            
-            # SEMPRE tentar usar template Word primeiro
-            pdf_buffer = None
-            conversion_method = "N/A"
-            
-            if use_word_template and template_name:
-                template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
-                if os.path.exists(template_path):
-                    print(f"      🎨 Usando template Word: {template_name}")
-                    pdf_buffer = convert_word_exact(row_data, template_path)
-                    conversion_method = "Word Template (Exato)"
-                else:
-                    print(f"      ⚠️ Template Word não encontrado")
-            
-            # Se não conseguiu Word, tentar SVG
-            if not pdf_buffer or not pdf_buffer.getvalue():
-                # Procurar por template SVG
-                svg_template_name = template_name.replace('.docx', '.svg') if template_name else 'carta_digi.svg'
-                svg_template_path = os.path.join(app.config['TEMPLATES_FOLDER'], svg_template_name)
-                
-                if os.path.exists(svg_template_path):
-                    print(f"      🎨 Usando template SVG: {svg_template_name}")
-                    pdf_buffer = convert_svg_template(row_data, svg_template_path)
-                    conversion_method = "SVG Template"
-                else:
-                    print(f"      ⚠️ Template SVG não encontrado")
-            
-            # Se não conseguiu SVG, usar template padrão
-            if not pdf_buffer or not pdf_buffer.getvalue():
-                print(f"      📄 Usando template padrão DIGI")
-                pdf_buffer = generate_digi_template_pdf(row_data)
-                conversion_method = "DIGI Template"
-            
-            # GARANTIR que temos um PDF válido
-            if not pdf_buffer:
-                print(f"      ⚠️ Buffer é None, criando PDF mínimo...")
-                pdf_buffer = io.BytesIO()
-                doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-                story = [Paragraph(f"Carta para {numero}", getSampleStyleSheet()['Normal'])]
-                doc_pdf.build(story)
-                pdf_buffer.seek(0)
-                conversion_method = "PDF Mínimo"
-            
-            # Verificar conteúdo
-            pdf_content = pdf_buffer.getvalue()
-            if not pdf_content:
-                print(f"      ⚠️ Buffer vazio, criando PDF mínimo...")
-                pdf_buffer = io.BytesIO()
-                doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-                story = [Paragraph(f"Carta para {numero}", getSampleStyleSheet()['Normal'])]
-                doc_pdf.build(story)
-                pdf_buffer.seek(0)
-                pdf_content = pdf_buffer.getvalue()
-                conversion_method = "PDF Mínimo (Vazio)"
-            
-            # Salvar PDF temporário com nome único
-            temp_pdf_path = os.path.join(
-                app.config['TEMP_FOLDER'], 
-                f'temp_{job_id}_chunk_{chunk_id}_item_{i}_{int(time.time() * 1000)}.pdf'
-            )
-            
-            with open(temp_pdf_path, 'wb') as f:
-                f.write(pdf_content)
-            
-            # Verificar se o arquivo foi criado
-            if not os.path.exists(temp_pdf_path):
-                print(f"      ❌ Arquivo PDF não foi criado: {temp_pdf_path}")
-                continue
-            
-            file_size = os.path.getsize(temp_pdf_path)
-            if file_size == 0:
-                print(f"      ❌ Arquivo PDF vazio: {temp_pdf_path}")
-                continue
-            
-            # Nome do arquivo baseado no número
-            filename = f'Carta_{numero}.pdf'
-            
-            pdf_files.append((temp_pdf_path, filename))
-            print(f"      ✅ PDF gerado: {filename} ({file_size} bytes) - Método: {conversion_method}")
-            
-        except Exception as e:
-            print(f"      ❌ Erro ao gerar PDF para {row_data.get('NOME', 'registro')}: {e}")
-            # Criar PDF mínimo como último recurso
-            try:
-                temp_pdf_path = os.path.join(
-                    app.config['TEMP_FOLDER'], 
-                    f'temp_{job_id}_chunk_{chunk_id}_item_{i}_error_{int(time.time() * 1000)}.pdf'
-                )
-                
-                pdf_buffer = io.BytesIO()
-                doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-                story = [Paragraph(f"Carta para {row_data.get('NUMERO', 'N/A')} (erro)", getSampleStyleSheet()['Normal'])]
-                doc_pdf.build(story)
-                pdf_buffer.seek(0)
-                
-                with open(temp_pdf_path, 'wb') as f:
-                    f.write(pdf_buffer.getvalue())
-                
-                numero = row_data.get('NUMERO', f'{i+1:03d}')
-                filename = f'Carta_{numero}.pdf'
-                pdf_files.append((temp_pdf_path, filename))
-                print(f"      ✅ PDF de emergência criado: {filename} - Método: Emergência")
-                
-            except Exception as emergency_error:
-                print(f"      ❌ Erro crítico: {emergency_error}")
-                continue
-    
-    print(f"   ✅ Chunk {chunk_id} concluído: {len(pdf_files)} PDFs gerados")
-    return pdf_files
-
-def generate_digi_template_pdf(row_data):
-    """Gera PDF usando template DIGI padrão embutido"""
-    try:
-        print(f"      🎨 Gerando PDF com template DIGI padrão")
-        
-        # Extrair dados
-        numero = row_data.get('NUMERO', '[NUMERO]')
-        iccid = row_data.get('ICCID', '[ICCID]')
-        nome = row_data.get('NOME', '[NOME]')
-        
-        # Gerar PDF com formatação exata da DIGI
-        pdf_buffer = io.BytesIO()
-        doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
-                                   topMargin=0.7*inch, bottomMargin=0.7*inch,
-                                   leftMargin=0.7*inch, rightMargin=0.7*inch)
-        story = []
-        
-        # Estilos otimizados para DIGI
-        styles = getSampleStyleSheet()
-        
-        # Estilo para logo DIGI (azul, centralizado, grande)
-        digi_logo_style = ParagraphStyle(
-            'DigiLogo',
-            parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30,
-            alignment=1,  # Centralizado
-            textColor=colors.HexColor('#0915FF'),
-            fontName='Helvetica-Bold'
-        )
-        
-        # Estilo para saudação
-        greeting_style = ParagraphStyle(
-            'Greeting',
-            parent=styles['Normal'],
-            fontSize=12,
-            spaceAfter=8,
-            leading=16,
-            alignment=0,  # Esquerda
-            textColor=colors.black
-        )
-        
-        # Estilo para título de boas-vindas
-        welcome_style = ParagraphStyle(
-            'Welcome',
-            parent=styles['Heading2'],
-            fontSize=14,
-            spaceAfter=12,
-            leading=18,
-            alignment=0,  # Esquerda
-            textColor=colors.black,
-            fontName='Helvetica-Bold'
-        )
-        
-        # Estilo para texto normal
-        normal_style = ParagraphStyle(
-            'Normal',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=8,
-            leading=14,
-            alignment=0,  # Esquerda
-            textColor=colors.black
-        )
-        
-        # Estilo para dados importantes (número, ICCID)
-        data_style = ParagraphStyle(
-            'Data',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=6,
-            leading=14,
-            alignment=0,  # Esquerda
-            textColor=colors.black,
-            fontName='Helvetica-Bold'
-        )
-        
-        # Estilo para contato
-        contact_style = ParagraphStyle(
-            'Contact',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=10,
-            leading=14,
-            alignment=0,  # Esquerda
-            textColor=colors.black
-        )
-        
-        # Estilo para fechamento
-        closing_style = ParagraphStyle(
-            'Closing',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=15,
-            leading=14,
-            alignment=0,  # Esquerda
-            textColor=colors.black
-        )
-        
-        # Estilo para rodapé legal
-        footer_style = ParagraphStyle(
-            'Footer',
-            parent=styles['Normal'],
-            fontSize=9,
-            spaceAfter=6,
-            leading=12,
-            alignment=0,  # Esquerda
-            textColor=colors.grey
-        )
-        
-        # Conteúdo do template DIGI
-        story.append(Paragraph("DIGI", digi_logo_style))
-        story.append(Spacer(1, 20))
-        
-        story.append(Paragraph("Olá,", greeting_style))
-        story.append(Spacer(1, 8))
-        
-        story.append(Paragraph("Bem-vindo/a à DIGI!", welcome_style))
-        story.append(Spacer(1, 12))
-        
-        story.append(Paragraph("Estamos muito entusiasmados por ter-te connosco.", normal_style))
-        story.append(Spacer(1, 8))
-        
-        story.append(Paragraph("Agora, já podes desfrutar das vantagens de ser DIGI, como ter sempre o nosso melhor preço ou receber uma fatura sem surpresas.", normal_style))
-        story.append(Spacer(1, 8))
-        
-        story.append(Paragraph("Aqui, encontras o teu número de telemóvel e o código ICCID associado ao teu novo cartão SIM, para que possas identificá-lo facilmente caso tenhas contratado mais do que um número.", normal_style))
-        story.append(Spacer(1, 8))
-        
-        # Tabela com dados
-        table_data = [
-            ['Número', 'Código ICCID cartão'],
-            [numero, iccid]
-        ]
-        
-        pdf_table = Table(table_data)
-        table_style = TableStyle([
-            # Cabeçalho - negrito e sublinhado
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-            ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('TOPPADDING', (0, 0), (-1, 0), 8),
-            # Linha separadora do cabeçalho
-            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
-            # Corpo da tabela
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 11),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-            ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-            ('TOPPADDING', (0, 1), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-            # Sem bordas internas
-            ('BACKGROUND', (0, 0), (-1, -1), colors.white)
-        ])
-        
-        pdf_table.setStyle(table_style)
-        story.append(pdf_table)
-        story.append(Spacer(1, 15))
-        
-        story.append(Paragraph("Em caso de dúvida, não hesites em contactar-nos através do 923 30 90 30 (gratuito na rede DIGI e com custo de uma chamada normal para outros operadores). Estamos aqui para te ajudar.", contact_style))
-        story.append(Spacer(1, 10))
-        
-        story.append(Paragraph("Até breve,", closing_style))
-        story.append(Spacer(1, 15))
-        
-        story.append(Paragraph("A Equipa DIGI.", closing_style))
-        story.append(Spacer(1, 15))
-        
-        story.append(Paragraph("DIGI PORTUGAL, LDA. Matriculada na CRC sobo nº 516222201 - Capital Social 150.000.000,00€ Avenida José Malhoa nº11,3º Andar - 1070-157 Lisboa", footer_style))
-        story.append(Spacer(1, 6))
-        
-        # Construir PDF
-        doc_pdf.build(story)
-        pdf_buffer.seek(0)
-        
-        print(f"      ✅ PDF gerado com sucesso: {len(pdf_buffer.getvalue())} bytes")
-        return pdf_buffer
-        
-    except Exception as e:
-        print(f"      ❌ Erro ao gerar template DIGI: {e}")
-        return None
-
-def create_final_zip(pdf_files, zip_path):
-    """Cria o ZIP final com todos os PDFs"""
-    print(f"📦 Criando ZIP final: {len(pdf_files)} arquivos")
-    
-    if not pdf_files:
-        print(f"   ❌ Nenhum arquivo PDF para adicionar ao ZIP")
-        return False
-    
-    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        added_files = 0
-        for pdf_path, filename in pdf_files:
-            print(f"   📄 Verificando: {pdf_path}")
-            if os.path.exists(pdf_path):
-                file_size = os.path.getsize(pdf_path)
-                print(f"      ✅ Adicionando: {filename} ({file_size} bytes)")
-                zip_file.write(pdf_path, filename)
-                added_files += 1
-            else:
-                print(f"      ❌ Arquivo não encontrado: {pdf_path}")
-        
-        print(f"   ✅ ZIP criado com {added_files} arquivos")
-        print(f"   📁 Caminho do ZIP: {zip_path}")
-        
-        # Verificar tamanho do ZIP
-        if os.path.exists(zip_path):
-            zip_size = os.path.getsize(zip_path)
-            print(f"   📊 Tamanho do ZIP: {zip_size} bytes")
-            return added_files > 0
-        else:
-            print(f"   ❌ ZIP não foi criado")
-            return False
-
-def cleanup_temp_files(pdf_files):
-    """Remove arquivos temporários"""
-    for pdf_path, _ in pdf_files:
-        try:
-            if os.path.exists(pdf_path):
-                os.remove(pdf_path)
-        except:
-            pass
-
-def prepare_system_for_next_batch(job_id):
-    """Prepara o sistema para gerar mais lotes após completar um job"""
-    try:
-        print(f"🔄 Preparando sistema para próximo lote...")
-        
-        # Limpar cache de templates para garantir templates atualizados
-        template_cache.clear()
-        print(f"   ✅ Cache de templates limpo")
-        
-        # Limpar jobs antigos (manter apenas o atual por um tempo)
-        old_jobs = [jid for jid in progress_tracker.keys() if jid != job_id]
-        for old_job in old_jobs:
-            if old_job in progress_tracker:
-                # Manter job atual por 5 minutos para download
-                job_age = time.time() - progress_tracker[old_job].get('start_time', 0)
-                if job_age > 300:  # 5 minutos
-                    del progress_tracker[old_job]
-                    if old_job in current_jobs:
-                        current_jobs.remove(old_job)
-        
-        print(f"   ✅ Jobs antigos limpos")
-        
-        # Limpar arquivos temporários antigos
-        temp_files = []
-        for filename in os.listdir(app.config['TEMP_FOLDER']):
-            if filename.startswith('temp_') and not filename.startswith(f'temp_{job_id}'):
-                file_path = os.path.join(app.config['TEMP_FOLDER'], filename)
-                try:
-                    if os.path.isfile(file_path):
-                        os.remove(file_path)
-                        temp_files.append(filename)
-                except:
-                    pass
-        
-        print(f"   ✅ {len(temp_files)} arquivos temporários antigos removidos")
-        
-        # Resetar configurações para próximo lote
-        app.config['MAX_WORKERS'] = 8  # Manter configuração otimizada
-        app.config['CHUNK_SIZE'] = 5   # Manter chunks otimizados
-        
-        print(f"   ✅ Sistema pronto para próximo lote!")
-        print(f"   🚀 Workers: {app.config['MAX_WORKERS']}")
-        print(f"   📦 Chunk Size: {app.config['CHUNK_SIZE']}")
-        
-    except Exception as e:
-        print(f"   ⚠️ Aviso ao preparar sistema: {e}")
-        # Não falhar o job por causa da limpeza
-
-@lru_cache(maxsize=10)
-def prepare_template_cache(template_name):
-    """Prepara cache do template para reutilização"""
-    if template_name not in template_cache:
-        template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
-        template_cache[template_name] = {
-            'path': template_path,
-            'last_modified': os.path.getmtime(template_path)
+        # Criar job
+        job_id = str(uuid.uuid4())
+        job_data = {
+            'status': 'processing',
+            'current': 0,
+            'total': len(excel_data),
+            'message': 'Iniciando processamento...'
         }
-
-
-
-def generate_simple_pdf(row_data, template_text):
-    """Gera PDF simples com ReportLab (fallback) - usa versão otimizada"""
-    return generate_simple_pdf_optimized(row_data, template_text)
-
-def generate_word_pdf_ultra_optimized(row_data, template_name):
-    """Gera PDF a partir de template Word SEM HTML, apenas Word. Se falhar, retorna erro claro."""
-    try:
-        print(f"      🎨 Iniciando geração Word PDF para template: {template_name}")
-        print(f"      📊 Dados recebidos: {list(row_data.keys())}")
         
-        # Verificar cache
-        if template_name not in template_cache:
-            prepare_template_cache(template_name)
+        jobs[job_id] = job_data
         
-        template_info = template_cache[template_name]
-        template_path = template_info['path']
-        
-        print(f"      📁 Template path: {template_path}")
-        print(f"      ✅ Template existe: {os.path.exists(template_path)}")
-        
-        if not os.path.exists(template_path):
-            raise Exception(f"Template não encontrado: {template_path}")
-        
-        # Criar documento temporário com nome único
-        timestamp = int(time.time() * 1000000)  # Microsegundos para garantir unicidade
-        temp_docx = os.path.join(app.config['TEMP_FOLDER'], f'temp_{timestamp}.docx')
-        temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'temp_{timestamp}.pdf')
-        
-        print(f"      📄 Temp DOCX: {temp_docx}")
-        print(f"      📄 Temp PDF: {temp_pdf}")
-        
-        # Copiar template
-        shutil.copy2(template_path, temp_docx)
-        print(f"      ✅ Template copiado para: {temp_docx}")
-        
-        # Carregar documento e substituir placeholders de forma simples
-        doc = Document(temp_docx)
-        
-        # Substituir placeholders de forma simples e robusta
-        def replace_placeholders_simple():
-            placeholder_mapping = {
-                '[NUMERO]': 'NUMERO',
-                '[ICCID]': 'ICCID',
-                '[NOME]': 'NOME',
-                '[EMAIL]': 'EMAIL',
-                '[TELEFONE]': 'TELEFONE'
-            }
-            for paragraph in doc.paragraphs:
-                full_text = paragraph.text
-                new_text = full_text
-                for placeholder, data_key in placeholder_mapping.items():
-                    if placeholder in new_text and data_key in row_data:
-                        new_text = new_text.replace(placeholder, str(row_data[data_key]) if row_data[data_key] is not None else '')
-                        print(f"      🔄 Substituído: {placeholder} → {row_data[data_key]}")
-                for key, value in row_data.items():
-                    placeholder = f'[{key.upper()}]'
-                    if placeholder in new_text:
-                        new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                if new_text != full_text:
-                    paragraph.text = new_text
-                    print(f"      ✅ Parágrafo atualizado")
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for paragraph in cell.paragraphs:
-                            full_text = paragraph.text
-                            new_text = full_text
-                            for placeholder, data_key in placeholder_mapping.items():
-                                if placeholder in new_text and data_key in row_data:
-                                    new_text = new_text.replace(placeholder, str(row_data[data_key]) if row_data[data_key] is not None else '')
-                            for key, value in row_data.items():
-                                placeholder = f'[{key.upper()}]'
-                                if placeholder in new_text:
-                                    new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                            if new_text != full_text:
-                                paragraph.text = new_text
-        replace_placeholders_simple()
-        doc.save(temp_docx)
-        print(f"      ✅ Documento salvo com placeholders substituídos")
-        print(f"      🔄 Convertendo para PDF preservando formatação exata...")
-        pdf_content = convert_word_to_pdf_exact(temp_docx, temp_pdf)
-        try:
-            os.remove(temp_docx)
-            if os.path.exists(temp_pdf):
-                os.remove(temp_pdf)
-        except:
-            pass
-        if pdf_content is not None:
-            pdf_buffer = io.BytesIO(pdf_content)
-            pdf_buffer.seek(0)
-            print(f"      ✅ PDF gerado com sucesso: {len(pdf_content)} bytes")
-            return pdf_buffer
-        else:
-            print(f"      ❌ Falha na conversão Word para PDF. Verifique o template.")
-            raise Exception("Falha na conversão Word para PDF. Verifique o template.")
-    except Exception as e:
-        print(f"      ❌ Erro na geração Word PDF: {e}")
-        raise Exception(f"Erro na geração Word PDF: {e}")
-
-def generate_word_pdf_alternative_method(row_data, template_path, temp_docx, temp_pdf):
-    """Método alternativo para substituir placeholders quando o método principal falha"""
-    try:
-        print(f"🔄 Usando método alternativo para {row_data.get('NOME', 'registro')}")
-        
-        # Ler o template como texto
-        doc = Document(template_path)
-        template_text = ""
-        
-        # Extrair texto completo do template preservando estrutura
-        for paragraph in doc.paragraphs:
-            template_text += paragraph.text + "\n"
-        
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        template_text += paragraph.text + "\n"
-        
-        # Substituir placeholders no texto
-        for key, value in row_data.items():
-            placeholder = f'[{key.upper()}]'
-            if placeholder in template_text:
-                template_text = template_text.replace(placeholder, str(value) if value is not None else '')
-                print(f"   ✅ Substituído {placeholder} → {value}")
-        
-        # Verificar se ainda há placeholders
-        placeholders_restantes = []
-        for key in row_data.keys():
-            if f'[{key.upper()}]' in template_text:
-                placeholders_restantes.append(f'[{key.upper()}]')
-        
-        if placeholders_restantes:
-            print(f"   ⚠️ Placeholders restantes: {placeholders_restantes}")
-        else:
-            print(f"   ✅ Todos os placeholders substituídos!")
-        
-        # Gerar PDF usando ReportLab com o texto processado
-        return generate_simple_pdf_optimized(row_data, template_text)
-        
-    except Exception as e:
-        print(f"❌ Erro no método alternativo: {e}")
-        return generate_simple_pdf_optimized(row_data, DEFAULT_TEMPLATE)
-
-def convert_word_to_pdf_preserve_formatting(docx_path, pdf_path):
-    """Converte Word para PDF preservando formatação exata"""
-    try:
-        print(f"🔄 Iniciando conversão Word→PDF: {os.path.basename(docx_path)}")
-        
-        # Método 1: Tentar com docx2pdf (preserva formatação)
-        try:
-            print(f"   📄 Tentando docx2pdf...")
-            convert(docx_path, pdf_path)
-            if os.path.exists(pdf_path):
-                with open(pdf_path, 'rb') as f:
-                    pdf_content = f.read()
-                if len(pdf_content) > 0:
-                    print(f"   ✅ Conversão docx2pdf bem-sucedida: {len(pdf_content)} bytes")
-                    return pdf_content
-                else:
-                    print(f"   ❌ PDF criado mas está vazio")
-            else:
-                print(f"   ❌ PDF não foi criado")
-        except Exception as e:
-            print(f"   ❌ docx2pdf falhou: {e}")
-            
-        # Método 2: Tentar com COM direto (preserva formatação)
-        try:
-            print(f"   🖥️ Tentando COM direto...")
-            return convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path)
-        except Exception as e:
-            print(f"   ❌ COM direto falhou: {e}")
-            
-        # Método 3: Tentar COM robusto (preserva formatação)
-        try:
-            print(f"   🛡️ Tentando COM robusto...")
-            return convert_word_to_pdf_com_robust(docx_path, pdf_path)
-        except Exception as e:
-            print(f"   ❌ COM robusto falhou: {e}")
-            
-        # Se todos os métodos falharam, não usar fallback ReportLab
-        print(f"   ❌ Todos os métodos de conversão falharam")
-        raise Exception("Não foi possível converter Word para PDF preservando formatação")
-        
-    except Exception as e:
-        print(f"❌ Erro na conversão Word→PDF: {e}")
-        raise e
-
-def convert_word_to_pdf_robust(docx_path, pdf_path):
-    """Converte Word para PDF com tratamento robusto de COM (método antigo)"""
-    return convert_word_to_pdf_preserve_formatting(docx_path, pdf_path)
-
-def convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path):
-    """Converte Word para PDF usando COM direto preservando formatação exata"""
-    
-    # Fallback se Windows não estiver disponível
-    if not WINDOWS_AVAILABLE:
-        print(f"   ⚠️ Windows não disponível, usando fallback")
-        return convert_word_to_pdf_fallback(docx_path, pdf_path)
-    
-    word = None
-    doc = None
-    try:
-        # Inicializar COM para esta thread
-        pythoncom.CoInitialize()
-        
-        # Criar instância do Word com DispatchEx para nova instância
-        word = win32com.client.DispatchEx("Word.Application")
-        
-        # Configurar Word para preservar formatação
-        word.Visible = False
-        word.DisplayAlerts = False
-        
-        # Verificar se arquivo existe
-        if not os.path.exists(docx_path):
-            raise Exception(f"Arquivo não encontrado: {docx_path}")
-        
-        # Abrir documento com caminho absoluto
-        abs_docx_path = os.path.abspath(docx_path)
-        abs_pdf_path = os.path.abspath(pdf_path)
-        
-        print(f"   📄 Abrindo documento: {os.path.basename(docx_path)}")
-        doc = word.Documents.Open(abs_docx_path)
-        
-        # Configurar opções de PDF para preservar formatação
-        print(f"   🔄 Convertendo para PDF...")
-        
-        # Múltiplas tentativas com diferentes parâmetros (versão robusta)
-        methods = [
-            lambda: doc.SaveAs(abs_pdf_path, FileFormat=17, OptimizeFor=0),
-            lambda: doc.SaveAs(abs_pdf_path, FileFormat=17),
-            lambda: doc.SaveAs(abs_pdf_path, FileFormat=6),
-            lambda: doc.SaveAs(abs_pdf_path)
-        ]
-        
-        success = False
-        for i, method in enumerate(methods):
-            try:
-                method()
-                success = True
-                print(f"   ✅ Conversão bem-sucedida com método {i+1}")
-                break
-            except Exception as e:
-                if i == len(methods) - 1:  # Última tentativa
-                    raise e
-                print(f"   ⚠️ Método {i+1} falhou, tentando próximo...")
-                continue
-        
-        # Fechar documento
-        doc.Close(False)  # False = não salvar alterações
-        
-        # Verificar se PDF foi criado
-        if os.path.exists(pdf_path):
-            file_size = os.path.getsize(pdf_path)
-            if file_size > 1000:  # PDF deve ter pelo menos 1KB
-                print(f"   ✅ PDF criado com sucesso: {file_size} bytes")
-                with open(pdf_path, 'rb') as f:
-                    pdf_content = f.read()
-                return pdf_content
-            else:
-                raise Exception(f"PDF criado mas muito pequeno: {file_size} bytes")
-        else:
-            raise Exception("PDF não foi criado")
-            
-    except Exception as e:
-        print(f"   ❌ Erro na conversão COM: {e}")
-        raise e
-        
-    finally:
-        # Limpar recursos de forma robusta
-        if doc is not None:
-            try:
-                doc.Close(False)
-            except:
-                pass
-        if word is not None:
-            try:
-                word.Quit()
-            except:
-                pass
-        try:
-            pythoncom.CoUninitialize()
-        except:
-            pass
-
-def convert_word_to_pdf_fallback(docx_path, pdf_path):
-    """Converte Word para PDF usando docx2pdf ou ReportLab como fallback"""
-    try:
-        print(f"   📄 Tentando conversão Word para PDF")
-        
-        # Método 1: Tentar docx2pdf primeiro
-        try:
-            print(f"   📄 Tentando docx2pdf...")
-            convert(docx_path, pdf_path)
-            if os.path.exists(pdf_path):
-                with open(pdf_path, 'rb') as f:
-                    pdf_content = f.read()
-                if len(pdf_content) > 0:
-                    print(f"   ✅ Conversão docx2pdf bem-sucedida: {len(pdf_content)} bytes")
-                    return pdf_content
-                else:
-                    print(f"   ❌ PDF criado mas está vazio")
-            else:
-                print(f"   ❌ PDF não foi criado")
-        except Exception as e:
-            print(f"   ❌ docx2pdf falhou: {e}")
-        
-        # Método 2: Usar ReportLab para ler o Word e recriar
-        print(f"   📄 Usando ReportLab como fallback...")
-        doc = Document(docx_path)
-        
-        # Gerar PDF com formatação preservada
-        pdf_buffer = io.BytesIO()
-        doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
-                                   topMargin=0.7*inch, bottomMargin=0.7*inch,
-                                   leftMargin=0.7*inch, rightMargin=0.7*inch)
-        story = []
-        
-        # Estilos otimizados
-        styles = getSampleStyleSheet()
-        
-        # Estilo para logo/título
-        title_style = ParagraphStyle(
-            'Title',
-            parent=styles['Heading1'],
-            fontSize=20,
-            spaceAfter=20,
-            alignment=1,  # Centralizado
-            textColor=colors.HexColor('#0915FF'),
-            fontName='Helvetica-Bold'
+        # Iniciar processamento em background
+        thread = threading.Thread(
+            target=process_data_with_svg,
+            args=(job_id, excel_data, template_name)
         )
+        thread.daemon = True
+        thread.start()
         
-        # Estilo para texto normal
-        normal_style = ParagraphStyle(
-            'Normal',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=8,
-            leading=14,
-            alignment=0,  # Esquerda
-            textColor=colors.black
-        )
-        
-        # Estilo para dados importantes
-        data_style = ParagraphStyle(
-            'Data',
-            parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=6,
-            leading=14,
-            alignment=0,  # Esquerda
-            textColor=colors.black,
-            fontName='Helvetica-Bold'
-        )
-        
-        # Processar parágrafos do documento Word
-        for paragraph in doc.paragraphs:
-            text = paragraph.text.strip()
-            if not text:
-                continue
-                
-            # Detectar tipo de conteúdo
-            text_lower = text.lower()
-            
-            if 'digi' in text_lower and len(text.strip()) <= 10:
-                # Logo DIGI
-                story.append(Paragraph(text, title_style))
-                story.append(Spacer(1, 20))
-            elif any(keyword in text_lower for keyword in ['número', 'iccid', 'cartão', 'sim']):
-                # Dados importantes
-                story.append(Paragraph(text, data_style))
-                story.append(Spacer(1, 8))
-            else:
-                # Texto normal
-                story.append(Paragraph(text, normal_style))
-                story.append(Spacer(1, 6))
-        
-        # Processar tabelas
-        for table in doc.tables:
-            if table.rows:
-                table_data = []
-                
-                for row in table.rows:
-                    row_data = []
-                    for cell in row.cells:
-                        cell_text = ""
-                        for paragraph in cell.paragraphs:
-                            cell_text += paragraph.text + " "
-                        row_data.append(cell_text.strip())
-                    
-                    if any(cell.strip() for cell in row_data):
-                        table_data.append(row_data)
-                
-                if table_data:
-                    pdf_table = Table(table_data)
-                    table_style = TableStyle([
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 11),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-                        ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
-                        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                        ('TOPPADDING', (0, 0), (-1, 0), 8),
-                        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
-                        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                        ('FONTSIZE', (0, 1), (-1, -1), 11),
-                        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-                        ('TOPPADDING', (0, 1), (-1, -1), 6),
-                        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-                        ('BACKGROUND', (0, 0), (-1, -1), colors.white)
-                    ])
-                    
-                    pdf_table.setStyle(table_style)
-                    story.append(pdf_table)
-                    story.append(Spacer(1, 15))
-        
-        # Construir PDF
-        doc_pdf.build(story)
-        pdf_buffer.seek(0)
-        
-        # Salvar PDF
-        with open(pdf_path, 'wb') as f:
-            f.write(pdf_buffer.getvalue())
-        
-        # Ler o PDF gerado
-        with open(pdf_path, 'rb') as f:
-            pdf_content = f.read()
-        
-        print(f"   ✅ PDF gerado com ReportLab: {len(pdf_content)} bytes")
-        return pdf_content
+        return jsonify({
+            'success': True,
+            'job_id': job_id,
+            'total': len(excel_data)
+        })
         
     except Exception as e:
-        print(f"   ❌ Erro na conversão Word para PDF: {e}")
-        return None
-
-def convert_word_to_pdf_com_robust(docx_path, pdf_path):
-    """Converte Word para PDF usando COM direto com tratamento robusto (método antigo)"""
-    return convert_word_to_pdf_com_preserve_formatting(docx_path, pdf_path)
-
-def generate_simple_pdf_optimized(row_data, template_text):
-    """Gera PDF simples com ReportLab otimizado e formatação melhorada"""
-    pdf_buffer = io.BytesIO()
-    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
-                           topMargin=1*inch, bottomMargin=1*inch,
-                           leftMargin=1*inch, rightMargin=1*inch)
-    story = []
-    
-    # Estilos otimizados
-    styles = getSampleStyleSheet()
-    
-    # Estilo para título
-    title_style = ParagraphStyle(
-        'Title',
-        parent=styles['Heading1'],
-        fontSize=16,
-        spaceAfter=20,
-        alignment=1,  # Centralizado
-        textColor=colors.HexColor('#0915FF')
-    )
-    
-    # Estilo para texto normal
-    normal_style = ParagraphStyle(
-        'Normal',
-        parent=styles['Normal'],
-        fontSize=12,
-        spaceAfter=12,
-        leading=16,
-        alignment=0  # Justificado
-    )
-    
-    # Estilo para assinatura
-    signature_style = ParagraphStyle(
-        'Signature',
-        parent=styles['Normal'],
-        fontSize=12,
-        spaceAfter=12,
-        leading=16,
-        alignment=2  # Direita
-    )
-    
-    # Substituir placeholders no template de forma otimizada
-    content = template_text
-    for key, value in row_data.items():
-        placeholder = f'[{key.upper()}]'
-        content = content.replace(placeholder, str(value) if value is not None else '')
-    
-    # Dividir o conteúdo em linhas e criar parágrafos com formatação inteligente
-    lines = content.split('\n')
-    for line in lines:
-        line = line.strip()
-        if line:  # Se a linha não estiver vazia
-            # Detectar tipo de linha para aplicar estilo apropriado
-            if line.upper() in ['CARTA PERSONALIZADA', 'CARTA', 'DOCUMENTO']:
-                story.append(Paragraph(line, title_style))
-            elif line.startswith('Com os melhores cumprimentos') or line.startswith('Atenciosamente'):
-                story.append(Paragraph(line, signature_style))
-            elif line == row_data.get('NOME', ''):  # Assinatura
-                story.append(Paragraph(line, signature_style))
-            else:
-                story.append(Paragraph(line, normal_style))
-        else:
-            story.append(Spacer(1, 8))
-    
-    # Construir PDF
-    doc.build(story)
-    pdf_buffer.seek(0)
-    return pdf_buffer
-
-def convert_word_to_pdf_exact(docx_path, pdf_path):
-    """Converte Word para PDF preservando formatação EXATA usando apenas docx2pdf"""
-    try:
-        print(f"   📄 Convertendo Word para PDF com formatação exata...")
-        print(f"   📁 Arquivo Word: {docx_path}")
-        print(f"   📁 Arquivo PDF: {pdf_path}")
-        print(f"   ✅ Word existe: {os.path.exists(docx_path)}")
-        
-        # Verificar se o arquivo Word existe e tem conteúdo
-        if not os.path.exists(docx_path):
-            print(f"   ❌ Arquivo Word não existe: {docx_path}")
-            return None
-            
-        word_size = os.path.getsize(docx_path)
-        if word_size == 0:
-            print(f"   ❌ Arquivo Word está vazio: {docx_path}")
-            return None
-            
-        print(f"   📊 Tamanho do Word: {word_size} bytes")
-        
-        # Limpar PDF anterior se existir
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
-            print(f"   🗑️ PDF anterior removido")
-        
-        # Método 1: Tentar docx2pdf com inicialização COM
-        try:
-            print(f"   🔄 Tentando docx2pdf com COM...")
-            
-            # Inicializar COM se estiver no Windows
-            import platform
-            if platform.system() == 'Windows':
-                try:
-                    import pythoncom
-                    pythoncom.CoInitialize()
-                    print(f"   ✅ COM inicializado no Windows")
-                except ImportError:
-                    print(f"   ⚠️ pythoncom não disponível")
-                except Exception as e:
-                    print(f"   ⚠️ Erro ao inicializar COM: {e}")
-            
-            # Tentar conversão
-            convert(docx_path, pdf_path)
-            print(f"   ✅ Conversão docx2pdf concluída")
-            
-            # Aguardar um pouco para garantir que o arquivo foi criado
-            import time
-            time.sleep(3)  # Aumentar tempo de espera
-            
-            # Verificar se o PDF foi criado
-            if os.path.exists(pdf_path):
-                print(f"   ✅ PDF criado: {pdf_path}")
-                
-                # Verificar tamanho do arquivo
-                file_size = os.path.getsize(pdf_path)
-                print(f"   📊 Tamanho do PDF: {file_size} bytes")
-                
-                if file_size > 0:
-                    with open(pdf_path, 'rb') as f:
-                        pdf_content = f.read()
-                    
-                    print(f"   ✅ Conversão bem-sucedida: {len(pdf_content)} bytes")
-                    return pdf_content
-                else:
-                    print(f"   ❌ PDF criado mas está vazio ({file_size} bytes)")
-            else:
-                print(f"   ❌ PDF não foi criado")
-                
-        except Exception as e:
-            print(f"   ❌ docx2pdf falhou: {e}")
-        
-        # Método 2: Fallback com ReportLab (preserva formatação básica)
-        print(f"   🔄 Usando fallback ReportLab...")
-        try:
-            pdf_content = convert_word_to_pdf_fallback(docx_path, pdf_path)
-            if pdf_content:
-                print(f"   ✅ Fallback bem-sucedido: {len(pdf_content)} bytes")
-                return pdf_content
-            else:
-                print(f"   ❌ Fallback também falhou")
-        except Exception as fallback_error:
-            print(f"   ❌ Erro no fallback: {fallback_error}")
-        
-        # Método 3: Gerar PDF padrão DIGI
-        print(f"   🔄 Gerando PDF padrão DIGI...")
-        try:
-            # Extrair dados do arquivo Word
-            doc = Document(docx_path)
-            data = {}
-            
-            # Procurar por placeholders nos parágrafos
-            for paragraph in doc.paragraphs:
-                text = paragraph.text
-                if '[NUMERO]' in text:
-                    data['NUMERO'] = '963000001'  # Valor padrão
-                if '[ICCID]' in text:
-                    data['ICCID'] = '3265412358796540000'  # Valor padrão
-            
-            # Gerar PDF padrão
-            pdf_content = generate_digi_template_pdf(data)
-            if pdf_content:
-                print(f"   ✅ PDF padrão gerado: {len(pdf_content)} bytes")
-                return pdf_content
-            else:
-                print(f"   ❌ Falha ao gerar PDF padrão")
-        except Exception as template_error:
-            print(f"   ❌ Erro ao gerar PDF padrão: {template_error}")
-        
-        return None
-            
-    except Exception as e:
-        print(f"   ❌ Erro na conversão: {e}")
+        print(f"❌ Erro em generate_pdf: {e}")
         import traceback
-        print(f"   📋 Traceback completo:")
         traceback.print_exc()
-        return None
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-def force_word_conversion(row_data, template_path):
-    """Força conversão Word para PDF com 100% de garantia de sucesso"""
+def process_data_with_svg(job_id, data_list, template_name):
+    """Processa dados usando apenas SVG"""
     try:
-        print(f"      🔥 FORÇANDO conversão Word para PDF...")
+        print(f"🚀 Iniciando processamento SVG para job {job_id}")
+        print(f"   📊 Total de registros: {len(data_list)}")
+        print(f"   📄 Template: {template_name}")
+        print(f"   📊 Primeiro registro: {data_list[0] if data_list else 'Nenhum'}")
         
-        # Verificar dados de entrada
-        numero = row_data.get('NUMERO', 'N/A')
-        iccid = row_data.get('ICCID', 'N/A')
-        print(f"      📊 Dados: Número={numero}, ICCID={iccid}")
+        result = generate_svg_pdf_with_pages(data_list, template_name, job_id)
         
-        # Criar arquivo temporário único
-        timestamp = int(time.time() * 1000000)
-        temp_docx = os.path.join(app.config['TEMP_FOLDER'], f'force_{timestamp}.docx')
-        temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'force_{timestamp}.pdf')
-        
-        # Copiar template
-        shutil.copy2(template_path, temp_docx)
-        print(f"      ✅ Template copiado: {temp_docx}")
-        
-        # Verificar se o arquivo foi copiado corretamente
-        if not os.path.exists(temp_docx):
-            print(f"      ❌ Falha ao copiar template")
-            return None
-            
-        # Carregar e processar documento
-        doc = Document(temp_docx)
-        
-        # Substituir TODOS os placeholders encontrados
-        replacements_made = 0
-        for paragraph in doc.paragraphs:
-            original_text = paragraph.text
-            new_text = original_text
-            
-            # Substituir placeholders específicos
-            for key, value in row_data.items():
-                placeholder = f'[{key.upper()}]'
-                if placeholder in new_text:
-                    new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                    replacements_made += 1
-                    print(f"      🔄 Substituído: {placeholder} → {value}")
-            
-            # Substituir placeholders genéricos
-            for key, value in row_data.items():
-                placeholder = f'[{key}]'
-                if placeholder in new_text:
-                    new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                    replacements_made += 1
-                    print(f"      🔄 Substituído: {placeholder} → {value}")
-            
-            if new_text != original_text:
-                paragraph.text = new_text
-                print(f"      ✅ Parágrafo atualizado")
-        
-        # Processar tabelas também
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        original_text = paragraph.text
-                        new_text = original_text
-                        
-                        for key, value in row_data.items():
-                            placeholder = f'[{key.upper()}]'
-                            if placeholder in new_text:
-                                new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                                replacements_made += 1
-                        
-                        if new_text != original_text:
-                            paragraph.text = new_text
-        
-        print(f"      📊 Total de substituições: {replacements_made}")
-        
-        # Salvar documento processado
-        doc.save(temp_docx)
-        print(f"      ✅ Documento salvo com substituições")
-        
-        # Verificar se o arquivo foi salvo
-        if not os.path.exists(temp_docx):
-            print(f"      ❌ Falha ao salvar documento processado")
-            return None
-        
-        # Tentar conversão com MÚLTIPLOS métodos
-        pdf_content = None
-        method_used = "Nenhum"
-        
-        # Método 1: docx2pdf direto
-        try:
-            print(f"      🔄 Método 1: docx2pdf direto...")
-            import platform
-            if platform.system() == 'Windows':
-                try:
-                    import pythoncom
-                    pythoncom.CoInitialize()
-                    print(f"      ✅ COM inicializado")
-                except Exception as com_error:
-                    print(f"      ⚠️ Erro COM: {com_error}")
-            
-            from docx2pdf import convert
-            convert(temp_docx, temp_pdf)
-            
-            # Aguardar e verificar
-            import time
-            time.sleep(2)
-            
-            if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
-                with open(temp_pdf, 'rb') as f:
-                    pdf_content = f.read()
-                print(f"      ✅ Método 1 bem-sucedido: {len(pdf_content)} bytes")
-                method_used = "docx2pdf"
-            else:
-                print(f"      ❌ Método 1 falhou - PDF não criado ou vazio")
-        except Exception as e:
-            print(f"      ❌ Método 1 falhou: {e}")
-        
-        # Método 2: ReportLab se método 1 falhar
-        if not pdf_content:
-            try:
-                print(f"      🔄 Método 2: ReportLab...")
-                pdf_content = convert_word_to_pdf_fallback(temp_docx, temp_pdf)
-                if pdf_content:
-                    print(f"      ✅ Método 2 bem-sucedido: {len(pdf_content)} bytes")
-                    method_used = "ReportLab"
-                else:
-                    print(f"      ❌ Método 2 falhou")
-            except Exception as e:
-                print(f"      ❌ Método 2 falhou: {e}")
-        
-        # Método 3: Recriar PDF do zero se tudo falhar
-        if not pdf_content:
-            try:
-                print(f"      🔄 Método 3: Recriar PDF...")
-                # Ler o documento processado e recriar
-                doc_processed = Document(temp_docx)
-                
-                # Gerar PDF com ReportLab
-                pdf_buffer = io.BytesIO()
-                doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4, 
-                                           topMargin=0.7*inch, bottomMargin=0.7*inch,
-                                           leftMargin=0.7*inch, rightMargin=0.7*inch)
-                story = []
-                
-                # Estilos
-                styles = getSampleStyleSheet()
-                normal_style = ParagraphStyle(
-                    'Normal',
-                    parent=styles['Normal'],
-                    fontSize=11,
-                    spaceAfter=8,
-                    leading=14,
-                    alignment=0,
-                    textColor=colors.black
-                )
-                
-                # Processar parágrafos
-                for paragraph in doc_processed.paragraphs:
-                    text = paragraph.text.strip()
-                    if text:
-                        story.append(Paragraph(text, normal_style))
-                        story.append(Spacer(1, 6))
-                
-                # Processar tabelas
-                for table in doc_processed.tables:
-                    if table.rows:
-                        table_data = []
-                        for row in table.rows:
-                            row_data = []
-                            for cell in row.cells:
-                                cell_text = ""
-                                for p in cell.paragraphs:
-                                    cell_text += p.text + " "
-                                row_data.append(cell_text.strip())
-                            if any(cell.strip() for cell in row_data):
-                                table_data.append(row_data)
-                        
-                        if table_data:
-                            pdf_table = Table(table_data)
-                            table_style = TableStyle([
-                                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                                ('FONTSIZE', (0, 0), (-1, -1), 11),
-                                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-                                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                                ('TOPPADDING', (0, 0), (-1, -1), 6),
-                                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                                ('BACKGROUND', (0, 0), (-1, -1), colors.white)
-                            ])
-                            pdf_table.setStyle(table_style)
-                            story.append(pdf_table)
-                            story.append(Spacer(1, 15))
-                
-                # Construir PDF
-                doc_pdf.build(story)
-                pdf_buffer.seek(0)
-                pdf_content = pdf_buffer.getvalue()
-                print(f"      ✅ Método 3 bem-sucedido: {len(pdf_content)} bytes")
-                method_used = "Recriar PDF"
-                
-            except Exception as e:
-                print(f"      ❌ Método 3 falhou: {e}")
-        
-        # Limpar arquivos temporários
-        try:
-            os.remove(temp_docx)
-            if os.path.exists(temp_pdf):
-                os.remove(temp_pdf)
-        except:
-            pass
-        
-        # SE NENHUM MÉTODO FUNCIONOU, GERAR PDF PADRÃO
-        if not pdf_content:
-            print(f"      ⚠️ Todos os métodos falharam, gerando PDF padrão...")
-            try:
-                pdf_content = generate_digi_template_pdf(row_data).getvalue()
-                print(f"      ✅ PDF padrão gerado: {len(pdf_content)} bytes")
-                method_used = "PDF Padrão"
-            except Exception as e:
-                print(f"      ❌ Erro ao gerar PDF padrão: {e}")
-                # Último recurso: PDF mínimo
-                pdf_buffer = io.BytesIO()
-                doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-                story = [Paragraph(f"Carta para {numero}", getSampleStyleSheet()['Normal'])]
-                doc_pdf.build(story)
-                pdf_buffer.seek(0)
-                pdf_content = pdf_buffer.getvalue()
-                print(f"      ✅ PDF mínimo gerado: {len(pdf_content)} bytes")
-                method_used = "PDF Mínimo"
-        
-        if pdf_content:
-            print(f"      🎉 Conversão FORÇADA bem-sucedida! Método: {method_used}")
-            return io.BytesIO(pdf_content)
+        if result:
+            jobs[job_id]['status'] = 'completed'
+            jobs[job_id]['message'] = f'PDF SVG gerado com sucesso: {len(data_list)} páginas'
+            print(f"✅ Job {job_id} concluído com sucesso")
         else:
-            print(f"      ❌ Todos os métodos falharam")
-            return None
+            jobs[job_id]['status'] = 'error'
+            jobs[job_id]['message'] = 'Erro ao gerar PDF SVG'
+            print(f"❌ Job {job_id} falhou")
             
     except Exception as e:
-        print(f"      ❌ Erro na conversão forçada: {e}")
-        # Último recurso: gerar PDF padrão
-        try:
-            return generate_digi_template_pdf(row_data)
-        except:
-            # PDF mínimo como último recurso
-            pdf_buffer = io.BytesIO()
-            doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-            story = [Paragraph(f"Carta para {row_data.get('NUMERO', 'N/A')}", getSampleStyleSheet()['Normal'])]
-            doc_pdf.build(story)
-            pdf_buffer.seek(0)
-            return pdf_buffer
-
-def convert_word_exact(row_data, template_path):
-    """Converte Word para PDF preservando 100% da formatação original"""
-    try:
-        print(f"      🎯 Convertendo Word EXATO (preservando header/footer)...")
-        
-        # Verificar dados de entrada
-        numero = row_data.get('NUMERO', 'N/A')
-        iccid = row_data.get('ICCID', 'N/A')
-        print(f"      📊 Dados: Número={numero}, ICCID={iccid}")
-        
-        # Criar arquivo temporário único
-        timestamp = int(time.time() * 1000000)
-        temp_docx = os.path.join(app.config['TEMP_FOLDER'], f'exact_{timestamp}.docx')
-        temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'exact_{timestamp}.pdf')
-        
-        # Copiar template original
-        shutil.copy2(template_path, temp_docx)
-        print(f"      ✅ Template copiado: {temp_docx}")
-        
-        # Verificar se o arquivo foi copiado corretamente
-        if not os.path.exists(temp_docx):
-            print(f"      ❌ Falha ao copiar template")
-            return None
-            
-        # Carregar documento
-        doc = Document(temp_docx)
-        
-        # Substituir APENAS os placeholders necessários, preservando formatação
-        replacements_made = 0
-        for paragraph in doc.paragraphs:
-            original_text = paragraph.text
-            new_text = original_text
-            
-            # Substituir placeholders específicos
-            for key, value in row_data.items():
-                placeholder = f'[{key.upper()}]'
-                if placeholder in new_text:
-                    new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                    replacements_made += 1
-                    print(f"      🔄 Substituído: {placeholder} → {value}")
-            
-            # Substituir placeholders genéricos
-            for key, value in row_data.items():
-                placeholder = f'[{key}]'
-                if placeholder in new_text:
-                    new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                    replacements_made += 1
-                    print(f"      🔄 Substituído: {placeholder} → {value}")
-            
-            if new_text != original_text:
-                paragraph.text = new_text
-                print(f"      ✅ Parágrafo atualizado")
-        
-        # Processar tabelas preservando formatação
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        original_text = paragraph.text
-                        new_text = original_text
-                        
-                        for key, value in row_data.items():
-                            placeholder = f'[{key.upper()}]'
-                            if placeholder in new_text:
-                                new_text = new_text.replace(placeholder, str(value) if value is not None else '')
-                                replacements_made += 1
-                        
-                        if new_text != original_text:
-                            paragraph.text = new_text
-        
-        print(f"      📊 Total de substituições: {replacements_made}")
-        
-        # Salvar documento processado
-        doc.save(temp_docx)
-        print(f"      ✅ Documento salvo com substituições")
-        
-        # Verificar se o arquivo foi salvo
-        if not os.path.exists(temp_docx):
-            print(f"      ❌ Falha ao salvar documento processado")
-            return None
-        
-        # CONVERSÃO DIRETA preservando formatação original
-        pdf_content = None
-        method_used = "Nenhum"
-        
-        # Método 1: docx2pdf (preserva 100% da formatação)
-        try:
-            print(f"      🔄 Método 1: docx2pdf (formatação original)...")
-            
-            # Inicializar COM no Windows
-            import platform
-            if platform.system() == 'Windows':
-                try:
-                    import pythoncom
-                    pythoncom.CoInitialize()
-                    print(f"      ✅ COM inicializado")
-                except Exception as com_error:
-                    print(f"      ⚠️ Erro COM: {com_error}")
-            
-            # Converter diretamente
-            from docx2pdf import convert
-            convert(temp_docx, temp_pdf)
-            
-            # Aguardar e verificar
-            import time
-            time.sleep(3)  # Aumentar tempo de espera
-            
-            if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
-                with open(temp_pdf, 'rb') as f:
-                    pdf_content = f.read()
-                print(f"      ✅ Método 1 bem-sucedido: {len(pdf_content)} bytes")
-                method_used = "docx2pdf (Original)"
-            else:
-                print(f"      ❌ Método 1 falhou - PDF não criado ou vazio")
-        except Exception as e:
-            print(f"      ❌ Método 1 falhou: {e}")
-        
-        # Método 2: Tentar novamente com configurações diferentes
-        if not pdf_content:
-            try:
-                print(f"      🔄 Método 2: docx2pdf (segunda tentativa)...")
-                
-                # Limpar PDF anterior
-                if os.path.exists(temp_pdf):
-                    os.remove(temp_pdf)
-                
-                # Tentar novamente
-                convert(temp_docx, temp_pdf)
-                time.sleep(5)  # Mais tempo de espera
-                
-                if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
-                    with open(temp_pdf, 'rb') as f:
-                        pdf_content = f.read()
-                    print(f"      ✅ Método 2 bem-sucedido: {len(pdf_content)} bytes")
-                    method_used = "docx2pdf (Tentativa 2)"
-                else:
-                    print(f"      ❌ Método 2 falhou")
-            except Exception as e:
-                print(f"      ❌ Método 2 falhou: {e}")
-        
-        # Método 3: Usar comtypes se disponível (Windows)
-        if not pdf_content and platform.system() == 'Windows':
-            try:
-                print(f"      🔄 Método 3: comtypes (Windows)...")
-                import comtypes.client
-                
-                # Criar instância do Word
-                word = comtypes.client.CreateObject('Word.Application')
-                word.Visible = False
-                
-                # Abrir documento
-                doc_word = word.Documents.Open(os.path.abspath(temp_docx))
-                
-                # Salvar como PDF
-                doc_word.SaveAs(os.path.abspath(temp_pdf), FileFormat=17)  # PDF
-                doc_word.Close()
-                word.Quit()
-                
-                time.sleep(2)
-                
-                if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
-                    with open(temp_pdf, 'rb') as f:
-                        pdf_content = f.read()
-                    print(f"      ✅ Método 3 bem-sucedido: {len(pdf_content)} bytes")
-                    method_used = "comtypes (Word)"
-                else:
-                    print(f"      ❌ Método 3 falhou")
-            except Exception as e:
-                print(f"      ❌ Método 3 falhou: {e}")
-        
-        # Limpar arquivos temporários
-        try:
-            os.remove(temp_docx)
-            if os.path.exists(temp_pdf):
-                os.remove(temp_pdf)
-        except:
-            pass
-        
-        if pdf_content:
-            print(f"      🎉 Conversão EXATA bem-sucedida! Método: {method_used}")
-            return io.BytesIO(pdf_content)
-        else:
-            print(f"      ❌ Todos os métodos falharam")
-            return None
-            
-    except Exception as e:
-        print(f"      ❌ Erro na conversão exata: {e}")
-        return None
-
-def convert_svg_template(row_data, svg_path):
-    """Converte template SVG para PDF preservando formatação perfeita"""
-    try:
-        print(f"      🎨 Convertendo template SVG para PDF...")
-        
-        # Verificar dados de entrada
-        numero = row_data.get('NUMERO', 'N/A')
-        iccid = row_data.get('ICCID', 'N/A')
-        print(f"      📊 Dados: Número={numero}, ICCID={iccid}")
-        
-        # Criar arquivo temporário único
-        timestamp = int(time.time() * 1000000)
-        temp_svg = os.path.join(app.config['TEMP_FOLDER'], f'svg_{timestamp}.svg')
-        temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'svg_{timestamp}.pdf')
-        
-        # Copiar template SVG
-        shutil.copy2(svg_path, temp_svg)
-        print(f"      ✅ Template SVG copiado: {temp_svg}")
-        
-        # Ler conteúdo SVG
-        with open(temp_svg, 'r', encoding='utf-8') as f:
-            svg_content = f.read()
-        
-        # Substituir placeholders no SVG
-        replacements_made = 0
-        for key, value in row_data.items():
-            placeholder = f'[{key.upper()}]'
-            if placeholder in svg_content:
-                svg_content = svg_content.replace(placeholder, str(value) if value is not None else '')
-                replacements_made += 1
-                print(f"      🔄 Substituído: {placeholder} → {value}")
-            
-            placeholder = f'[{key}]'
-            if placeholder in svg_content:
-                svg_content = svg_content.replace(placeholder, str(value) if value is not None else '')
-                replacements_made += 1
-                print(f"      🔄 Substituído: {placeholder} → {value}")
-        
-        print(f"      📊 Total de substituições: {replacements_made}")
-        
-        # Salvar SVG processado
-        with open(temp_svg, 'w', encoding='utf-8') as f:
-            f.write(svg_content)
-        print(f"      ✅ SVG processado salvo")
-        
-        # Converter SVG para PDF usando múltiplos métodos
-        pdf_content = None
-        method_used = "Nenhum"
-        
-        # Método 1: Usar cairosvg (se disponível)
-        try:
-            print(f"      🔄 Método 1: cairosvg...")
-            import cairosvg
-            cairosvg.svg2pdf(url=temp_svg, write_to=temp_pdf)
-            
-            if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
-                with open(temp_pdf, 'rb') as f:
-                    pdf_content = f.read()
-                print(f"      ✅ Método 1 bem-sucedido: {len(pdf_content)} bytes")
-                method_used = "cairosvg"
-            else:
-                print(f"      ❌ Método 1 falhou")
-        except ImportError:
-            print(f"      ⚠️ cairosvg não disponível")
-        except Exception as e:
-            print(f"      ❌ Método 1 falhou: {e}")
-        
-        # Método 2: Usar reportlab com SVG
-        if not pdf_content:
-            try:
-                print(f"      🔄 Método 2: ReportLab SVG...")
-                from reportlab.graphics import renderPDF
-                from reportlab.graphics.shapes import Drawing
-                from reportlab.graphics.barcode import qr
-                
-                # Criar PDF com SVG embutido
-                pdf_buffer = io.BytesIO()
-                doc_pdf = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-                story = []
-                
-                # Adicionar SVG como imagem
-                story.append(Paragraph(f"Template SVG para {numero}", getSampleStyleSheet()['Normal']))
-                
-                doc_pdf.build(story)
-                pdf_buffer.seek(0)
-                pdf_content = pdf_buffer.getvalue()
-                print(f"      ✅ Método 2 bem-sucedido: {len(pdf_content)} bytes")
-                method_used = "ReportLab SVG"
-            except Exception as e:
-                print(f"      ❌ Método 2 falhou: {e}")
-        
-        # Método 3: Usar weasyprint se disponível
-        if not pdf_content:
-            try:
-                print(f"      🔄 Método 3: WeasyPrint...")
-                from weasyprint import HTML, CSS
-                
-                # Criar HTML com SVG
-                html_content = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <style>
-                        body {{ margin: 0; padding: 20px; }}
-                        svg {{ width: 100%; height: auto; }}
-                    </style>
-                </head>
-                <body>
-                    {svg_content}
-                </body>
-                </html>
-                """
-                
-                # Converter para PDF
-                html = HTML(string=html_content)
-                html.write_pdf(temp_pdf)
-                
-                if os.path.exists(temp_pdf) and os.path.getsize(temp_pdf) > 0:
-                    with open(temp_pdf, 'rb') as f:
-                        pdf_content = f.read()
-                    print(f"      ✅ Método 3 bem-sucedido: {len(pdf_content)} bytes")
-                    method_used = "WeasyPrint"
-                else:
-                    print(f"      ❌ Método 3 falhou")
-            except ImportError:
-                print(f"      ⚠️ WeasyPrint não disponível")
-            except Exception as e:
-                print(f"      ❌ Método 3 falhou: {e}")
-        
-        # Limpar arquivos temporários
-        try:
-            os.remove(temp_svg)
-            if os.path.exists(temp_pdf):
-                os.remove(temp_pdf)
-        except:
-            pass
-        
-        if pdf_content:
-            print(f"      🎉 Conversão SVG bem-sucedida! Método: {method_used}")
-            return io.BytesIO(pdf_content)
-        else:
-            print(f"      ❌ Todos os métodos SVG falharam")
-            return None
-            
-    except Exception as e:
-        print(f"      ❌ Erro na conversão SVG: {e}")
-        return None
-
-def process_data_in_chunks(job_id, data, template_name, use_word_template, template_type):
-    """Processar dados em chunks com suporte a SVG e Word"""
-    try:
-        print(f"🚀 Iniciando processamento em chunks para job {job_id}")
-        print(f"   Template: {template_name}")
-        print(f"   Tipo: {template_type}")
-        print(f"   Total: {len(data)} registros")
-        
-        # Configurar chunks
-        chunk_size = 10
-        chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
-        
-        job_data = jobs[job_id]
-        job_data['chunks'] = len(chunks)
-        job_data['current_chunk'] = 0
-        
-        for chunk_id, chunk in enumerate(chunks):
-            print(f"   📦 Processando chunk {chunk_id + 1}/{len(chunks)}")
-            job_data['current_chunk'] = chunk_id + 1
-            
-            # Processar chunk com suporte a SVG
-            if template_type == "svg" and template_name:
-                svg_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
-                if os.path.exists(svg_path):
-                    process_chunk_svg(chunk, template_name, job_id, chunk_id, svg_path)
-                else:
-                    print(f"   ⚠️ Template SVG não encontrado, usando fallback")
-                    process_chunk_optimized(chunk, template_name, use_word_template, job_id, chunk_id)
-            else:
-                process_chunk_optimized(chunk, template_name, use_word_template, job_id, chunk_id)
-            
-            # Atualizar progresso
-            job_data['current'] = min((chunk_id + 1) * chunk_size, len(data))
-            job_data['message'] = f'Processando chunk {chunk_id + 1}/{len(chunks)}'
-        
-        # Finalizar job
-        job_data['status'] = 'completed'
-        job_data['message'] = f'Geração concluída! {len(data)} PDFs criados.'
-        print(f"   ✅ Job {job_id} concluído")
-        
-    except Exception as e:
-        print(f"   ❌ Erro no processamento: {e}")
+        print(f"❌ Erro no processamento SVG: {e}")
+        import traceback
+        traceback.print_exc()
         if job_id in jobs:
             jobs[job_id]['status'] = 'error'
             jobs[job_id]['message'] = f'Erro: {str(e)}'
 
-def process_chunk_svg(chunk, template_name, job_id, chunk_id, svg_path):
-    """Processar chunk usando template SVG"""
+@app.route('/api/progress/<job_id>')
+def get_progress(job_id):
+    """Obter progresso de um job específico"""
     try:
-        print(f"      🎨 Processando chunk SVG {chunk_id + 1}")
-        print(f"      📁 Template: {template_name}")
+        if job_id not in jobs:
+            return jsonify({'error': 'Job não encontrado'}), 404
         
-        # Criar pasta para resultados
-        results_folder = os.path.join(app.config['UPLOADS_FOLDER'], f'job_{job_id}')
-        os.makedirs(results_folder, exist_ok=True)
-        
-        # Processar cada registro do chunk
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = []
-            
-            for i, row_data in enumerate(chunk):
-                numero = row_data.get('NUMERO', f'chunk_{chunk_id}_item_{i}')
-                print(f"      📄 Processando {numero}")
-                
-                future = executor.submit(
-                    process_single_svg,
-                    row_data,
-                    svg_path,
-                    results_folder,
-                    numero
-                )
-                futures.append(future)
-            
-            # Aguardar conclusão
-            for future in futures:
-                try:
-                    result = future.result(timeout=30)
-                    if result:
-                        print(f"      ✅ PDF gerado: {result}")
-                except Exception as e:
-                    print(f"      ❌ Erro ao gerar PDF: {e}")
-        
-        print(f"      ✅ Chunk SVG {chunk_id + 1} concluído")
+        job = jobs[job_id]
+        return jsonify({
+            'status': job['status'],
+            'current': job['current'],
+            'total': job['total'],
+            'message': job.get('message', ''),
+            'progress': (job['current'] / job['total'] * 100) if job['total'] > 0 else 0
+        })
         
     except Exception as e:
-        print(f"      ❌ Erro no chunk SVG {chunk_id + 1}: {e}")
+        return jsonify({'error': str(e)}), 500
 
-def process_single_svg(row_data, svg_path, results_folder, numero):
-    """Processar um único registro usando SVG"""
+@app.route('/api/download/<job_id>')
+def download_result(job_id):
+    """Download do resultado do job"""
     try:
-        print(f"         🎨 Convertendo SVG para {numero}")
+        if job_id not in jobs:
+            return jsonify({'error': 'Job não encontrado'}), 404
         
-        # Converter SVG para PDF
-        pdf_buffer = convert_svg_template(row_data, svg_path)
+        job = jobs[job_id]
+        if job['status'] != 'completed':
+            return jsonify({'error': 'Job ainda não concluído'}), 400
         
-        if pdf_buffer and pdf_buffer.getvalue():
-            # Salvar PDF
-            pdf_filename = f'carta_{numero}.pdf'
-            pdf_path = os.path.join(results_folder, pdf_filename)
-            
-            with open(pdf_path, 'wb') as f:
-                f.write(pdf_buffer.getvalue())
-            
-            print(f"         ✅ PDF salvo: {pdf_filename}")
-            return pdf_filename
-        else:
-            print(f"         ❌ Falha na conversão SVG para {numero}")
-            return None
-            
+        # Buscar arquivo PDF gerado
+        pdf_filename = f'cartas_{job_id}.pdf'
+        pdf_path = os.path.join(app.config['UPLOADS_FOLDER'], pdf_filename)
+        
+        if not os.path.exists(pdf_path):
+            return jsonify({'error': 'Arquivo PDF não encontrado'}), 404
+        
+        return send_file(
+            pdf_path,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=pdf_filename
+        )
+        
     except Exception as e:
-        print(f"         ❌ Erro ao processar SVG {numero}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+def generate_svg_pdf_with_pages(data_list, template_name, job_id):
+    """Gera PDF único com múltiplas páginas usando template SVG"""
+    try:
+        if not SVG_AVAILABLE or not PDF_MERGE_AVAILABLE:
+            print("❌ Dependências não disponíveis")
+            return None
+        
+        template_path = os.path.join(app.config['TEMPLATES_FOLDER'], template_name)
+        if not os.path.exists(template_path):
+            print(f"❌ Template não encontrado: {template_path}")
+            return None
+        
+        pdf_path = os.path.join(app.config['UPLOADS_FOLDER'], f'cartas_{job_id}.pdf')
+        timestamp = int(time.time() * 1000000)
+        pdf_files = []
+        
+        print(f"📄 Processando {len(data_list)} registros")
+        print(f"📄 Template: {template_path}")
+        
+        # Para cada registro, gerar um PDF individual
+        for i, row_data in enumerate(data_list):
+            print(f"\n📄 Processando registro {i+1}/{len(data_list)}")
+            print(f"📊 Dados do registro: {row_data}")
+            
+            # Ler template SVG
+            with open(template_path, 'r', encoding='utf-8') as f:
+                svg_content = f.read()
+            
+            print(f"📄 Template carregado: {len(svg_content)} caracteres")
+            
+            # Verificar quais placeholders existem no template
+            all_placeholders = []
+            import re
+            # Regex para capturar placeholders [CAMPO] e também texto simples CAMPO
+            placeholder_pattern = r'\[([A-Z_]+)\]'
+            found_placeholders = re.findall(placeholder_pattern, svg_content)
+            
+            # Também procurar por texto simples que pode ser substituído
+            simple_text_pattern = r'>([A-Z_]+)</tspan>'
+            simple_texts = re.findall(simple_text_pattern, svg_content)
+            
+            print(f"🔍 Placeholders encontrados no template: {found_placeholders}")
+            print(f"🔍 Textos simples encontrados: {simple_texts}")
+            
+            # Substituir placeholders dinamicamente
+            print(f"🔄 Substituindo placeholders:")
+            for placeholder_name in found_placeholders:
+                placeholder = f'[{placeholder_name}]'
+                
+                # Verificar se o campo existe nos dados
+                if placeholder_name in row_data:
+                    value = row_data[placeholder_name]
+                    if value is not None:
+                        # Converter para string e formatar
+                        if isinstance(value, (int, float)):
+                            value = str(int(value))
+                        else:
+                            value = str(value)
+                        
+                        # Formatação especial para ICCID - remover espaços
+                        if placeholder_name == 'ICCID':
+                            value = value.replace(' ', '')
+                            print(f"   ✅ [{placeholder_name}] -> {value} (espaços removidos)")
+                        
+                        # Fazer a substituição
+                        old_content = svg_content
+                        svg_content = svg_content.replace(placeholder, value)
+                        
+                        if old_content != svg_content:
+                            print(f"   ✅ [{placeholder_name}] -> {value}")
+                        else:
+                            print(f"   ⚠️ [{placeholder_name}] não foi substituído")
+                    else:
+                        svg_content = svg_content.replace(placeholder, '')
+                        print(f"   ⚠️ [{placeholder_name}] -> '' (valor nulo)")
+                elif placeholder_name.upper() == 'DATA':
+                    from datetime import datetime
+                    current_date = datetime.now().strftime('%d/%m/%Y')
+                    svg_content = svg_content.replace(placeholder, current_date)
+                    print(f"   ✅ [DATA] -> {current_date}")
+                else:
+                    # Campo não encontrado nos dados
+                    svg_content = svg_content.replace(placeholder, '')
+                    print(f"   ⚠️ [{placeholder_name}] -> '' (campo não encontrado)")
+            
+            # Substituir textos simples também
+            print(f"🔄 Substituindo textos simples:")
+            for text_name in simple_texts:
+                if text_name in row_data:
+                    value = row_data[text_name]
+                    if value is not None:
+                        # Converter para string
+                        if isinstance(value, (int, float)):
+                            value = str(int(value))
+                        else:
+                            value = str(value)
+                        
+                        # Substituir o texto dentro das tags tspan preservando posicionamento
+                        old_content = svg_content
+                        
+                        # Encontrar o elemento tspan com NUMERO
+                        if text_name == 'NUMERO':
+                            # Usar regex para encontrar e substituir mantendo o posicionamento
+                            pattern = r'(<tspan[^>]*>)[^<]*NUMERO[^<]*(</tspan>)'
+                            # Usar uma função de substituição para evitar problemas com grupos
+                            def replace_numero(match):
+                                return match.group(1) + value + match.group(2)
+                            svg_content = re.sub(pattern, replace_numero, svg_content)
+                        else:
+                            # Para outros campos, usar substituição simples
+                            pattern = f'>{text_name}</tspan>'
+                            replacement = f'>{value}</tspan>'
+                            svg_content = svg_content.replace(pattern, replacement)
+                        
+                        if old_content != svg_content:
+                            print(f"   ✅ {text_name} -> {value}")
+                        else:
+                            print(f"   ⚠️ {text_name} não foi substituído")
+                    else:
+                        # Se valor é nulo, remover o texto
+                        pattern = f'>{text_name}</tspan>'
+                        replacement = f'></tspan>'
+                        svg_content = svg_content.replace(pattern, replacement)
+                        print(f"   ⚠️ {text_name} -> '' (valor nulo)")
+                else:
+                    print(f"   ⚠️ {text_name} -> '' (campo não encontrado)")
+            
+            # Tratamento especial para NUMERO - remover o ] que está separado e o [ que pode estar no início
+            if 'NUMERO' in row_data and row_data['NUMERO'] is not None:
+                value = str(int(row_data['NUMERO']))
+                # Remover o ] que está em elemento separado
+                svg_content = svg_content.replace('>] </tspan>', '></tspan>')
+                # Remover qualquer [ que possa estar no início do valor
+                svg_content = svg_content.replace(f'>[{value}</tspan>', f'>{value}</tspan>')
+                # Remover [ solto que pode estar antes do NUMERO
+                svg_content = svg_content.replace('>[</tspan>', '></tspan>')
+                print(f"   ✅ Tratamento especial para NUMERO: {value}")
+            
+            # Verificar se ainda há placeholders não substituídos
+            remaining_placeholders = re.findall(placeholder_pattern, svg_content)
+            if remaining_placeholders:
+                print(f"⚠️ Placeholders não substituídos: {remaining_placeholders}")
+            
+            # Verificar se há texto que parece placeholder mas não foi substituído
+            remaining_texts = re.findall(simple_text_pattern, svg_content)
+            if remaining_texts:
+                print(f"⚠️ Textos não substituídos: {remaining_texts}")
+            
+            # Verificar se há [ ou ] soltos
+            if '[' in svg_content or ']' in svg_content:
+                print(f"⚠️ Colchetes soltos encontrados no SVG final")
+                # Remover colchetes soltos
+                svg_content = svg_content.replace('>[</tspan>', '></tspan>')
+                svg_content = svg_content.replace('>]</tspan>', '></tspan>')
+                svg_content = svg_content.replace('>] </tspan>', '></tspan>')
+                print(f"   ✅ Colchetes soltos removidos")
+            
+            # Criar arquivo SVG temporário
+            temp_svg = os.path.join(app.config['TEMP_FOLDER'], f'temp_{timestamp}_{i}.svg')
+            with open(temp_svg, 'w', encoding='utf-8') as f:
+                f.write(svg_content)
+            
+            print(f"💾 SVG temporário salvo: {temp_svg}")
+            
+            # Converter SVG para PDF
+            temp_pdf = os.path.join(app.config['TEMP_FOLDER'], f'temp_{timestamp}_{i}.pdf')
+            try:
+                svg2pdf(url=temp_svg, write_to=temp_pdf)
+                print(f"📄 PDF gerado: {temp_pdf}")
+                pdf_files.append(temp_pdf)
+            except Exception as e:
+                print(f"❌ Erro ao converter SVG para PDF: {e}")
+                continue
+            
+            # Limpar arquivo SVG temporário
+            try:
+                os.remove(temp_svg)
+            except:
+                pass
+            
+            # Atualizar progresso
+            if job_id in jobs:
+                jobs[job_id]['current'] = i + 1
+                jobs[job_id]['message'] = f'Processando página {i+1} de {len(data_list)}'
+        
+        print(f"\n📄 Total de PDFs gerados: {len(pdf_files)}")
+        
+        if not pdf_files:
+            print("❌ Nenhum PDF foi gerado")
+            return None
+        
+        # Juntar todos os PDFs em um só
+        merger = PdfMerger()
+        for pdf_file in pdf_files:
+            merger.append(pdf_file)
+        
+        merger.write(pdf_path)
+        merger.close()
+        
+        print(f"✅ PDF final salvo: {pdf_path}")
+        
+        # Limpar arquivos temporários
+        for pdf_file in pdf_files:
+            try:
+                os.remove(pdf_file)
+            except:
+                pass
+        
+        return pdf_path
+        
+    except Exception as e:
+        print(f"❌ Erro ao gerar PDF SVG: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 if __name__ == '__main__':
-    # Configuração para produção (Render, Heroku, etc.)
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') == 'development'
     
-    print(f"🚀 Iniciando servidor na porta {port}")
+    print(f"🚀 Iniciando servidor SVG-Only na porta {port}")
     print(f"🔧 Debug mode: {debug}")
-    print(f"👥 Max workers: {app.config['MAX_WORKERS']}")
-    print(f"📦 Chunk size: {app.config['CHUNK_SIZE']}")
+    print(f"📦 SVG disponível: {SVG_AVAILABLE}")
+    print(f"📦 PDF Merge disponível: {PDF_MERGE_AVAILABLE}")
     
     app.run(
-        host='0.0.0.0',  # Importante para Render/Heroku
+        host='0.0.0.0',
         port=port,
         debug=debug,
         threaded=True

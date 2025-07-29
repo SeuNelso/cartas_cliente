@@ -1,12 +1,6 @@
 Flask==2.3.3
 pandas==2.1.1
 openpyxl==3.1.2
-reportlab==4.0.4
-Werkzeug==2.3.7
-python-docx==0.8.11
-# Dependências essenciais para conversão robusta
-docx2pdf==0.1.8
-pywin32==306; sys_platform == "win32"
-comtypes==1.2.0; sys_platform == "win32"
 cairosvg==2.7.1
-weasyprint==60.2
+PyPDF2==3.0.1
+Werkzeug==2.3.7

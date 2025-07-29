@@ -3,281 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Geração de Cartas PDF</title>
+    <title>Sistema de Cartas Automáticas - SVG Only</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            margin: 0;
             padding: 20px;
+            background-color: #f5f5f5;
         }
-
         .container {
-            max-width: 1400px;
+            max-width: 800px;
             margin: 0 auto;
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .header {
-            background: #0915FF;
-            color: white;
             padding: 30px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .main-content {
-            padding: 40px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-        }
-
-        .left-panel, .right-panel {
-            background: #f8f9fa;
             border-radius: 10px;
-            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-
-        .upload-section {
-            background: white;
-            border: 2px dashed #0915FF;
-            border-radius: 10px;
-            padding: 30px;
-            text-align: center;
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .upload-section:hover {
-            border-color: #667eea;
-            background: #f0f2ff;
-        }
-
-        .upload-section.dragover {
-            border-color: #667eea;
-            background: #e8f0ff;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .upload-btn {
-            background: #0915FF;
-            color: white;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 25px;
-            font-size: 1.1em;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 10px;
-        }
-
-        .upload-btn:hover {
-            background: #667eea;
-            transform: translateY(-2px);
-        }
-
-        .file-info {
-            margin-top: 20px;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            display: none;
-        }
-
-        .template-section {
-            margin-bottom: 20px;
-        }
-
-        .template-section h3 {
+        h1 {
             color: #0915FF;
-            margin-bottom: 15px;
+            text-align: center;
+            margin-bottom: 30px;
         }
-
-        .template-options {
-            background: white;
-            border-radius: 8px;
+        .section {
+            margin-bottom: 30px;
             padding: 20px;
-            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
         }
-
-        .template-option {
-            margin-bottom: 15px;
+        .section h2 {
+            color: #333;
+            margin-top: 0;
         }
-
-        .template-option label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            font-weight: 500;
+        .file-input {
+            margin: 10px 0;
         }
-
-        .template-option input[type="radio"] {
-            margin-right: 10px;
-        }
-
-        .template-select {
+        .file-input input[type="file"] {
+            display: block;
             width: 100%;
             padding: 10px;
-            border: 2px solid #ddd;
+            border: 2px dashed #ccc;
             border-radius: 5px;
-            margin-top: 10px;
+            background-color: #f9f9f9;
         }
-
-        .template-editor {
-            width: 100%;
-            min-height: 200px;
-            padding: 15px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            line-height: 1.5;
-            resize: vertical;
-        }
-
-        .template-editor:focus {
-            outline: none;
+        .file-input input[type="file"]:hover {
             border-color: #0915FF;
         }
-
-        .placeholders-info {
-            background: #e8f4fd;
-            border: 1px solid #bee5eb;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 15px;
+        .select-container {
+            margin: 15px 0;
         }
-
-        .placeholders-info h4 {
-            color: #0c5460;
-            margin-bottom: 10px;
+        .select-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
         }
-
-        .placeholder-tag {
-            background: #0915FF;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            margin: 2px;
-            display: inline-block;
-        }
-
-        .data-preview {
-            margin-top: 20px;
-            display: none;
-        }
-
-        .data-table {
+        .select-container select {
             width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            font-size: 12px;
-        }
-
-        .data-table th {
-            background: #0915FF;
-            color: white;
             padding: 10px;
-            text-align: left;
-            font-weight: 600;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: white;
         }
-
-        .data-table td {
-            padding: 8px 10px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .data-table tr:hover {
-            background: #f8f9fa;
-        }
-
-        .generate-btn {
-            background: #28a745;
+        .btn {
+            background-color: #0915FF;
             color: white;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 25px;
-            font-size: 1.1em;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 20px;
-            width: 100%;
-        }
-
-        .generate-btn:hover {
-            background: #218838;
-            transform: translateY(-2px);
-        }
-        
-        .status-box {
-            background: #f8f9fa;
-            border: 2px solid #28a745;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-            text-align: center;
-        }
-        
-        .status-box.busy {
-            border-color: #ffc107;
-        }
-        
-        .status-box.error {
-            border-color: #dc3545;
-        }
-        
-        .status-btn {
-            background: #28a745;
-            color: white;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            margin-top: 10px;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background-color 0.3s;
         }
-        
-        .status-btn:hover {
-            background: #218838;
+        .btn:hover {
+            background-color: #070bcc;
         }
-
-        .generate-btn:disabled {
-            background: #6c757d;
+        .btn:disabled {
+            background-color: #ccc;
             cursor: not-allowed;
-            transform: none;
         }
-
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        .progress {
+            margin: 20px 0;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #0915FF;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .template-list {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+        }
+        .template-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .template-item:last-child {
+            border-bottom: none;
+        }
         .loading {
             display: none;
             text-align: center;
             margin: 20px 0;
         }
-
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #0915FF;
@@ -287,492 +159,162 @@
             animation: spin 1s linear infinite;
             margin: 0 auto;
         }
-
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-            display: none;
-        }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-            display: none;
-        }
-
-        .description {
-            color: #666;
-            font-size: 0.9em;
-            margin-top: 10px;
-        }
-
-        .info-box {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .info-box h4 {
-            color: #856404;
-            margin-bottom: 10px;
-        }
-
-        .template-upload-section {
-            background: white;
-            border: 2px dashed #28a745;
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 15px;
-        }
-
-        .template-upload-section h4 {
-            color: #28a745;
-            margin-bottom: 10px;
-        }
-
-        /* Barra de Progresso */
-        .progress-section {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-            display: none;
-        }
-
-        .progress-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .progress-title {
-            font-weight: 600;
-            color: #0915FF;
-        }
-
-        .progress-status {
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        .progress-bar-container {
-            background: #e9ecef;
-            border-radius: 10px;
-            height: 20px;
-            overflow: hidden;
-            margin-bottom: 10px;
-        }
-
-        .progress-bar {
-            background: linear-gradient(90deg, #0915FF, #667eea);
-            height: 100%;
-            border-radius: 10px;
-            transition: width 0.3s ease;
-            position: relative;
-        }
-
-        .progress-text {
-            text-align: center;
-            font-size: 0.9em;
-            color: #666;
-            margin-bottom: 15px;
-        }
-
-        .progress-details {
-            background: #f8f9fa;
-            border-radius: 5px;
-            padding: 10px;
-            font-size: 0.85em;
-            color: #555;
-        }
-        
-        .progress-timer {
-            margin: 15px 0;
-            display: flex;
-            justify-content: space-between;
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
-        }
-        
-        .timer-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex: 1;
-        }
-        
-        .timer-label {
-            font-size: 12px;
-            color: #6c757d;
-            margin-bottom: 4px;
-        }
-        
-        .timer-value {
-            font-size: 16px;
-            font-weight: bold;
-            color: #0915FF;
-            font-family: 'Courier New', monospace;
-        }
-
-        .download-btn {
-            background: #28a745;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 20px;
-            font-size: 1em;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: none;
-        }
-
-        .download-btn:hover {
-            background: #218838;
-            transform: translateY(-1px);
-        }
-
-        .download-btn:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Sistema de Geração de Cartas PDF</h1>
-            <p>Importe dados do Excel e gere cartas personalizadas em PDF</p>
+        <h1>🎨 Sistema de Cartas Automáticas - SVG Only</h1>
+        
+        <!-- Upload de Template SVG -->
+        <div class="section">
+            <h2>📄 Upload de Template SVG</h2>
+            <p>Faça upload de um template SVG (.svg) que será usado para gerar as cartas.</p>
+            
+            <div class="file-input">
+                <input type="file" id="svgTemplateInput" accept=".svg" onchange="handleTemplateUpload(this.files[0])">
+            </div>
+            
+            <div class="select-container">
+                <label for="svgTemplateSelect">Template SVG Selecionado:</label>
+                <select id="svgTemplateSelect">
+                    <option value="">Selecione um template SVG...</option>
+                    {% for template in svg_templates %}
+                    <option value="{{ template }}">{{ template }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div id="templateMessage" class="message"></div>
         </div>
-
-        <div class="main-content">
-            <div class="left-panel">
-                <div class="upload-section" id="uploadSection">
-                    <h2>📁 Upload do Arquivo Excel</h2>
-                    <p class="description">Arraste e solte seu arquivo Excel aqui ou clique para selecionar</p>
-                    
-                    <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
-                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                        Selecionar Arquivo Excel
-                    </button>
-                    
-                    <div class="file-info" id="fileInfo"></div>
-                </div>
-
-                <div class="error" id="errorMessage"></div>
-                <div class="success" id="successMessage"></div>
-
-                <div class="loading" id="loading">
-                    <div class="spinner"></div>
-                    <p>Processando arquivo...</p>
-                </div>
-
-                <div class="data-preview" id="dataPreview">
-                    <h3>📊 Prévia dos Dados</h3>
-                    <div style="overflow-x: auto;">
-                        <table class="data-table" id="dataTable">
-                            <thead>
-                                <tr id="tableHeader"></tr>
-                            </thead>
-                            <tbody id="tableBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Barra de Progresso -->
-                <div class="progress-section" id="progressSection">
-                    <div class="progress-header">
-                        <div class="progress-title">🔄 Progresso da Geração</div>
-                        <div class="progress-status" id="progressStatus">Iniciando...</div>
-                    </div>
-                    
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
-                    </div>
-                    
-                                   <div class="progress-text" id="progressText">0 de 0 PDFs gerados</div>
-               
-               <div class="progress-timer" id="progressTimer">
-                   <div class="timer-item">
-                       <span class="timer-label">⏱️ Tempo decorrido:</span>
-                       <span class="timer-value" id="elapsedTime">00:00</span>
-                   </div>
-                   <div class="timer-item">
-                       <span class="timer-label">⏳ Tempo restante:</span>
-                       <span class="timer-value" id="remainingTime">Calculando...</span>
-                   </div>
-               </div>
-               
-               <div class="progress-details" id="progressDetails">
-                   Aguardando início da geração...
-               </div>
-                    
-                    <button class="download-btn" id="downloadBtn" onclick="downloadResult()">
-                        📥 Baixar ZIP com PDFs
-                    </button>
-                </div>
+        
+        <!-- Upload de Arquivo Excel -->
+        <div class="section">
+            <h2>📊 Upload de Arquivo Excel</h2>
+            <p>Faça upload de um arquivo Excel (.xlsx, .xls) com os dados das cartas.</p>
+            
+            <div class="file-input">
+                <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileUpload(this.files[0])">
             </div>
-
-            <div class="right-panel">
-                <div class="template-section">
-                    <h3>📝 Configuração do Template</h3>
-                    
-                    <div class="template-options">
-                        <div class="template-option">
-                            <label>
-                                <input type="radio" name="templateType" value="word" checked onchange="toggleTemplateType()">
-                                Usar Template do Word (.docx)
-                            </label>
-                        </div>
-                        <div class="template-option">
-                            <label>
-                                <input type="radio" name="templateType" value="svg" onchange="toggleTemplateType()">
-                                Usar Template SVG (.svg) - Formatação Perfeita
-                            </label>
-                        </div>
-                        <div class="template-option">
-                            <label style="color: #999;">
-                                <input type="radio" name="templateType" value="text" onchange="toggleTemplateType()" disabled>
-                                Usar Editor de Texto (Desabilitado)
-                            </label>
-                        </div>
-                    </div>
-
-                    <div id="wordTemplateSection">
-                        <div class="template-upload-section">
-                            <h4>📄 Upload de Template Word</h4>
-                            <p class="description">Faça upload do seu arquivo .docx com placeholders [NUMERO] e [ICCID]</p>
-                            
-                            <input type="file" id="templateInput" class="file-input" accept=".docx">
-                            <button class="upload-btn" onclick="document.getElementById('templateInput').click()">
-                                Selecionar Template Word
-                            </button>
-                        </div>
-
-                        <div class="template-option">
-                            <label>Template Selecionado:</label>
-                            <select id="templateSelect" class="template-select">
-                                <option value="">Selecione um template...</option>
-                                {% for template in templates %}
-                                <option value="{{ template }}">{{ template }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div id="svgTemplateSection" style="display: none;">
-                        <div class="template-upload-section">
-                            <h4>🎨 Upload de Template SVG</h4>
-                            <p class="description">Faça upload do seu arquivo .svg com placeholders [NUMERO] e [ICCID]</p>
-                            <p class="description"><strong>Vantagem:</strong> Formatação 100% idêntica em qualquer sistema!</p>
-                            
-                            <input type="file" id="svgTemplateInput" class="file-input" accept=".svg">
-                            <button class="upload-btn" onclick="document.getElementById('svgTemplateInput').click()">
-                                Selecionar Template SVG
-                            </button>
-                        </div>
-
-                        <div class="template-option">
-                            <label>Template SVG Selecionado:</label>
-                            <select id="svgTemplateSelect" class="template-select">
-                                <option value="">Selecione um template SVG...</option>
-                                {% for template in svg_templates %}
-                                <option value="{{ template }}">{{ template }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="info-box">
-                            <h4>🎨 Vantagens do SVG</h4>
-                            <ul>
-                                <li>✅ Formatação perfeita e consistente</li>
-                                <li>✅ Funciona em Linux e Windows</li>
-                                <li>✅ Sem dependências do Office</li>
-                                <li>✅ Mais rápido e leve</li>
-                                <li>✅ Controle total sobre design</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div id="textTemplateSection" style="display: none;">
-                        <div class="warning-box">
-                            <h4>⚠️ Template Word Obrigatório</h4>
-                            <p>Este sistema requer um template Word (.docx) para preservar a formatação.</p>
-                            <p>Por favor, selecione "Template Word" acima e faça upload do seu arquivo .docx.</p>
-                        </div>
-                    </div>
+            
+            <div id="fileMessage" class="message"></div>
+        </div>
+        
+        <!-- Geração de PDF -->
+        <div class="section">
+            <h2>🖨️ Gerar Cartas PDF</h2>
+            <p>Gera um PDF único com todas as cartas usando o template SVG selecionado.</p>
+            
+            <button class="btn" onclick="generatePDF()" id="generateBtn">Gerar Cartas PDF</button>
+            <button class="btn btn-secondary" onclick="downloadPDF()" id="downloadBtn" style="display: none;">Download PDF</button>
+            
+            <div class="progress" id="progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
                 </div>
-
-                <div class="placeholders-info">
-                    <h4>📋 Seus Placeholders</h4>
-                    <p>Use estes placeholders no seu template:</p>
-                    <div id="placeholdersList">
-                        <span class="placeholder-tag">[NUMERO]</span>
-                        <span class="placeholder-tag">[ICCID]</span>
-                    </div>
-                </div>
-
-                <div class="info-box">
-                    <h4>ℹ️ Como Funciona</h4>
-                    <ul>
-                        <li>Faça upload do seu arquivo Excel</li>
-                        <li>Faça upload do seu template Word (.docx)</li>
-                        <li>Use placeholders [NUMERO] e [ICCID] no template</li>
-                        <li>Para cada linha do Excel, será gerado um PDF individual</li>
-                        <li>Se houver múltiplas linhas, receberá um arquivo ZIP</li>
-                        <li>Acompanhe o progresso em tempo real!</li>
-                    </ul>
-                </div>
-
-                <button class="generate-btn" id="generateBtn" onclick="generatePDF()">
-                    🎨 Gerar Cartas PDF
-                </button>
-                
-                <div id="systemStatus" class="status-box" style="display: none;">
-                    <h4>🔄 Status do Sistema</h4>
-                    <p id="statusMessage">Verificando...</p>
-                    <button id="checkStatusBtn" onclick="checkSystemStatus()" class="status-btn">
-                        🔄 Verificar Status
-                    </button>
-                </div>
+                <div class="progress-text" id="progressText">0%</div>
             </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processando...</p>
+            </div>
+            
+            <div id="generateMessage" class="message"></div>
+        </div>
+        
+        <!-- Status do Sistema -->
+        <div class="section">
+            <h2>📈 Status do Sistema</h2>
+            <div id="systemStatus">Carregando...</div>
+            <button class="btn btn-secondary" onclick="checkSystemStatus()">Atualizar Status</button>
         </div>
     </div>
 
     <script>
-        let currentData = null;
-        let currentColumns = [];
         let currentJobId = null;
-        let progressInterval = null;
-
-        // Drag and drop functionality
-        const uploadSection = document.getElementById('uploadSection');
-        const fileInput = document.getElementById('fileInput');
-        const templateInput = document.getElementById('templateInput');
-        const svgTemplateInput = document.getElementById('svgTemplateInput'); // Adicionado para SVG
-
-        uploadSection.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadSection.classList.add('dragover');
-        });
-
-        uploadSection.addEventListener('dragleave', () => {
-            uploadSection.classList.remove('dragover');
-        });
-
-        uploadSection.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadSection.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFile(files[0]);
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
-            }
-        });
-
-        templateInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleTemplateUpload(e.target.files[0]);
-            }
-        });
-
-        svgTemplateInput.addEventListener('change', (e) => { // Adicionado para SVG
-            if (e.target.files.length > 0) {
-                handleTemplateUpload(e.target.files[0]);
-            }
-        });
-
-        function toggleTemplateType() {
-            const wordSection = document.getElementById('wordTemplateSection');
-            const svgSection = document.getElementById('svgTemplateSection'); // Adicionado para SVG
-            const textSection = document.getElementById('textTemplateSection');
-            const templateType = document.querySelector('input[name="templateType"]:checked').value;
+        let currentExcelFile = null;  // Armazenar nome do arquivo Excel
+        
+        // Função para mostrar mensagens
+        function showMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `message ${type}`;
+            element.style.display = 'block';
             
-            if (templateType === 'word') {
-                wordSection.style.display = 'block';
-                svgSection.style.display = 'none'; // Esconder SVG
-                textSection.style.display = 'none';
-            } else if (templateType === 'svg') {
-                wordSection.style.display = 'none';
-                svgSection.style.display = 'block';
-                textSection.style.display = 'none';
-            } else { // text
-                wordSection.style.display = 'none';
-                svgSection.style.display = 'none';
-                textSection.style.display = 'block';
+            if (type === 'success') {
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, 5000);
             }
         }
-
-        function handleTemplateUpload(file) {
-            if (!file.name.match(/\.docx$/) && !file.name.match(/\.svg$/)) { // Adicionado para SVG
-                showError('Por favor, selecione um arquivo Word (.docx) ou SVG (.svg)');
-                return;
+        
+        // Função para mostrar loading
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            const generateBtn = document.getElementById('generateBtn');
+            
+            if (show) {
+                loading.style.display = 'block';
+                generateBtn.disabled = true;
+            } else {
+                loading.style.display = 'none';
+                generateBtn.disabled = false;
             }
-
+        }
+        
+        // Upload de template SVG
+        function handleTemplateUpload(file) {
+            if (!file) return;
+            
             const formData = new FormData();
-            formData.append('template', file);
-
+            formData.append('template', file);  // Mudando de 'file' para 'template'
+            
+            showLoading(true);
+            
             fetch('/api/upload-template', {
                 method: 'POST',
                 body: formData
             })
             .then(response => response.json())
             .then(data => {
+                showLoading(false);
+                
                 if (data.success) {
-                    showSuccess(data.message);
-                    // Recarregar a página para atualizar a lista de templates
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1500);
+                    showMessage('templateMessage', `✅ ${data.message}`, 'success');
+                    updateTemplateList(data.filename);  // Mudando de template_name para filename
                 } else {
-                    showError(data.error || 'Erro ao fazer upload do template');
+                    showMessage('templateMessage', `❌ ${data.error}`, 'error');
                 }
             })
             .catch(error => {
-                showError('Erro ao fazer upload do template: ' + error.message);
+                showLoading(false);
+                showMessage('templateMessage', `❌ Erro: ${error.message}`, 'error');
             });
         }
-
-        function handleFile(file) {
-            if (!file.name.match(/\.(xlsx|xls)$/)) {
-                showError('Por favor, selecione um arquivo Excel válido (.xlsx ou .xls)');
-                return;
-            }
-
-            showLoading(true);
-            hideMessages();
-
+        
+        // Atualizar lista de templates
+        function updateTemplateList(newTemplateName) {
+            const select = document.getElementById('svgTemplateSelect');
+            const option = document.createElement('option');
+            option.value = newTemplateName;
+            option.textContent = newTemplateName;
+            select.appendChild(option);
+            select.value = newTemplateName;
+        }
+        
+        // Upload de arquivo Excel
+        function handleFileUpload(file) {
+            if (!file) return;
+            
             const formData = new FormData();
             formData.append('file', file);
-
+            
+            showLoading(true);
+            
             fetch('/api/upload', {
                 method: 'POST',
                 body: formData
@@ -780,350 +322,136 @@
             .then(response => response.json())
             .then(data => {
                 showLoading(false);
+                
                 if (data.success) {
-                    currentData = data.data;
-                    currentColumns = data.columns;
-                    showFileInfo(file.name, data.data.length);
-                    showDataPreview(data.data, data.columns);
-                    updatePlaceholders(data.columns);
-                    showSuccess(`Arquivo carregado com sucesso! ${data.data.length} registros encontrados.`);
+                    currentExcelFile = file.name;  // Armazenar nome do arquivo
+                    showMessage('fileMessage', `✅ ${data.message}`, 'success');
                 } else {
-                    showError(data.error || 'Erro ao processar arquivo');
+                    showMessage('fileMessage', `❌ ${data.error}`, 'error');
                 }
             })
             .catch(error => {
                 showLoading(false);
-                showError('Erro ao fazer upload do arquivo: ' + error.message);
+                showMessage('fileMessage', `❌ Erro: ${error.message}`, 'error');
             });
         }
-
-        function updatePlaceholders(columns) {
-            // Não atualiza mais dinamicamente - usa apenas os placeholders fixos
-            // [NUMERO] e [ICCID] já estão definidos no HTML
-        }
         
-        function checkSystemStatus() {
-            const statusBox = document.getElementById('systemStatus');
-            const statusMessage = document.getElementById('statusMessage');
-            const checkBtn = document.getElementById('checkStatusBtn');
-            
-            checkBtn.disabled = true;
-            checkBtn.textContent = 'Verificando...';
-            
-            fetch('/api/status')
-                .then(response => response.json())
-                .then(data => {
-                    statusBox.style.display = 'block';
-                    statusBox.className = 'status-box ' + data.status;
-                    
-                    let message = data.message;
-                    if (data.status === 'ready') {
-                        message += `\n💾 Disco: ${data.disk_usage_mb}MB\n👥 Workers: ${data.workers}\n📦 Chunk: ${data.chunk_size}`;
-                    }
-                    
-                    statusMessage.textContent = message;
-                    checkBtn.disabled = false;
-                    checkBtn.textContent = '🔄 Verificar Status';
-                })
-                .catch(error => {
-                    statusBox.style.display = 'block';
-                    statusBox.className = 'status-box error';
-                    statusMessage.textContent = 'Erro ao verificar status: ' + error.message;
-                    checkBtn.disabled = false;
-                    checkBtn.textContent = '🔄 Verificar Status';
-                });
-        }
-        
-        // Verificar status automaticamente após completar geração
-        function checkStatusAfterCompletion() {
-            setTimeout(() => {
-                checkSystemStatus();
-            }, 2000); // Aguardar 2 segundos após completar
-        }
-
-        function showFileInfo(filename, recordCount) {
-            const fileInfo = document.getElementById('fileInfo');
-            fileInfo.innerHTML = `
-                <strong>Arquivo:</strong> ${filename}<br>
-                <strong>Registros:</strong> ${recordCount}
-            `;
-            fileInfo.style.display = 'block';
-        }
-
-        function showDataPreview(data, columns) {
-            const dataPreview = document.getElementById('dataPreview');
-            const tableHeader = document.getElementById('tableHeader');
-            const tableBody = document.getElementById('tableBody');
-
-            // Cabeçalho
-            tableHeader.innerHTML = columns.map(col => `<th>${col}</th>`).join('');
-
-            // Dados (mostrar apenas as primeiras 5 linhas)
-            const previewData = data.slice(0, 5);
-            tableBody.innerHTML = previewData.map(row => {
-                return `<tr>${columns.map(col => `<td>${row[col] || ''}</td>`).join('')}</tr>`;
-            }).join('');
-
-            if (data.length > 5) {
-                tableBody.innerHTML += `<tr><td colspan="${columns.length}" style="text-align: center; font-style: italic; color: #666;">
-                    ... e mais ${data.length - 5} registros
-                </td></tr>`;
-            }
-
-            dataPreview.style.display = 'block';
-        }
-
+        // Gerar PDF
         function generatePDF() {
-            if (!currentData) {
-                showError('Nenhum dado disponível para gerar PDF');
+            const templateSelect = document.getElementById('svgTemplateSelect');
+            const selectedTemplate = templateSelect.value;
+            
+            if (!selectedTemplate) {
+                showMessage('generateMessage', '❌ Selecione um template SVG primeiro', 'error');
                 return;
             }
-
-            const templateType = document.querySelector('input[name="templateType"]:checked').value;
-            let templateName = '';
-            let useWordTemplate = false;
-
-            console.log('🔍 DEBUG: Iniciando geração de PDF');
-            console.log('   Template Type:', templateType);
-            console.log('   Current Data:', currentData.length, 'registros');
-
-            if (templateType === 'word') {
-                templateName = document.getElementById('templateSelect').value;
-                console.log('   Template Name:', templateName);
-                console.log('   Template Select Element:', document.getElementById('templateSelect'));
-                console.log('   Available Options:', Array.from(document.getElementById('templateSelect').options).map(opt => opt.value));
-                
-                if (!templateName) {
-                    showError('Por favor, selecione um template Word');
-                    console.log('   ❌ Template não selecionado');
-                    return;
-                }
-                useWordTemplate = true;
-                console.log('   ✅ Template Word selecionado:', templateName);
-            } else if (templateType === 'svg') {
-                templateName = document.getElementById('svgTemplateSelect').value;
-                console.log('   Template Name:', templateName);
-                console.log('   SVG Template Select Element:', document.getElementById('svgTemplateSelect'));
-                console.log('   Available SVG Options:', Array.from(document.getElementById('svgTemplateSelect').options).map(opt => opt.value));
-                
-                if (!templateName) {
-                    showError('Por favor, selecione um template SVG');
-                    console.log('   ❌ Template SVG não selecionado');
-                    return;
-                }
-                useWordTemplate = false; // SVG não é um template Word, mas pode ser usado como base
-                console.log('   ✅ Template SVG selecionado:', templateName);
-            } else { // text
-                const templateText = document.getElementById('templateEditor').value;
-                console.log('   Template Text Length:', templateText.length);
-                
-                if (!templateText.trim()) {
-                    showError('Por favor, adicione um template');
-                    console.log('   ❌ Template de texto vazio');
-                    return;
-                }
-                console.log('   ✅ Template de texto usado');
+            
+            if (!currentExcelFile) {
+                showMessage('generateMessage', '❌ Faça upload de um arquivo Excel primeiro', 'error');
+                return;
             }
-
-            const payload = {
-                data: currentData,
-                template: templateName,
-                useWordTemplate: useWordTemplate
+            
+            const data = {
+                template_name: selectedTemplate,
+                excel_filename: currentExcelFile  // Enviar nome do arquivo Excel
             };
-
-            console.log('   📤 Payload sendo enviado:', payload);
-
-            const generateBtn = document.getElementById('generateBtn');
-            generateBtn.disabled = true;
-            generateBtn.textContent = 'Iniciando geração...';
-
+            
+            showLoading(true);
+            showMessage('generateMessage', '🔄 Iniciando geração de PDF...', 'info');
+            
             fetch('/api/generate-pdf', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(data)
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    if (data.job_id) {
-                        // Múltiplos PDFs - iniciar acompanhamento de progresso
-                        currentJobId = data.job_id;
-                        startProgressTracking(data.job_id, data.total);
-                        showSuccess('Geração iniciada! Acompanhe o progresso abaixo.');
-                    } else {
-                        // PDF único - download direto
-                        showSuccess('PDF gerado com sucesso!');
-                    }
+                    currentJobId = data.job_id;
+                    showMessage('generateMessage', `✅ Job criado: ${data.job_id}`, 'success');
+                    document.getElementById('progress').style.display = 'block';
+                    document.getElementById('downloadBtn').style.display = 'inline-block';
+                    monitorProgress();
                 } else {
-                    showError(data.error || 'Erro ao gerar PDF');
+                    showLoading(false);
+                    showMessage('generateMessage', `❌ ${data.error}`, 'error');
                 }
             })
             .catch(error => {
-                showError('Erro ao gerar PDF: ' + error.message);
-            })
-            .finally(() => {
-                generateBtn.disabled = false;
-                generateBtn.textContent = '🎨 Gerar Cartas PDF';
+                showLoading(false);
+                showMessage('generateMessage', `❌ Erro: ${error.message}`, 'error');
             });
         }
-
-        function startProgressTracking(jobId, total) {
-            // Mostrar seção de progresso
-            document.getElementById('progressSection').style.display = 'block';
-            document.getElementById('downloadBtn').style.display = 'none'; // Esconder botão inicialmente
+        
+        // Monitorar progresso
+        function monitorProgress() {
+            if (!currentJobId) return;
             
-            // Iniciar polling de progresso mais frequente
-            progressInterval = setInterval(() => {
-                fetch(`/api/progress/${jobId}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.error) {
-                        clearInterval(progressInterval);
-                        showError(data.error);
-                        return;
-                    }
-                    
-                    updateProgress(data);
-                    
-                    if (data.status === 'completed' || data.status === 'error') {
-                        clearInterval(progressInterval);
-                        if (data.status === 'completed') {
-                            showDownloadButton(jobId);
-                            // Verificar status do sistema após completar
-                            checkStatusAfterCompletion();
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro ao verificar progresso:', error);
-                    // Não parar o polling imediatamente, apenas logar o erro
-                    // O polling continuará tentando na próxima iteração
-                });
-            }, 500); // Atualizar a cada 500ms para tempo mais preciso
-        }
-
-        function updateProgress(data) {
-            const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
-            const progressStatus = document.getElementById('progressStatus');
-            const progressDetails = document.getElementById('progressDetails');
-            const elapsedTimeElement = document.getElementById('elapsedTime');
-            const remainingTimeElement = document.getElementById('remainingTime');
-            
-            const percentage = (data.current / data.total) * 100;
-            
-            progressBar.style.width = percentage + '%';
-            progressText.textContent = `${data.current} de ${data.total} PDFs gerados`;
-            progressStatus.textContent = data.status === 'completed' ? 'Concluído!' : 'Processando...';
-            progressDetails.textContent = data.message;
-            
-            // Atualizar temporizador com informações detalhadas
-            if (data.elapsed_time !== undefined) {
-                if (data.status === 'completed' && data.total_time !== undefined) {
-                    elapsedTimeElement.textContent = `⏱️ Tempo total: ${formatTime(data.total_time)}`;
-                } else {
-                    elapsedTimeElement.textContent = `⏱️ Tempo decorrido: ${formatTime(data.elapsed_time)}`;
+            fetch(`/api/progress/${currentJobId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showMessage('generateMessage', `❌ ${data.error}`, 'error');
+                    return;
                 }
-            }
-            
-            if (data.estimated_time_remaining !== undefined && data.estimated_time_remaining !== null) {
-                if (data.status === 'completed') {
-                    remainingTimeElement.textContent = '✅ Concluído!';
+                
+                const progress = data.progress || 0;
+                const status = data.status;
+                const message = data.message || '';
+                
+                document.getElementById('progressFill').style.width = `${progress}%`;
+                document.getElementById('progressText').textContent = `${progress.toFixed(1)}%`;
+                
+                if (status === 'completed') {
+                    showLoading(false);
+                    showMessage('generateMessage', `✅ ${message}`, 'success');
+                    document.getElementById('progress').style.display = 'none';
+                } else if (status === 'error') {
+                    showLoading(false);
+                    showMessage('generateMessage', `❌ ${message}`, 'error');
+                    document.getElementById('progress').style.display = 'none';
                 } else {
-                    remainingTimeElement.textContent = `⏳ Tempo restante: ${formatTime(data.estimated_time_remaining)}`;
+                    setTimeout(monitorProgress, 1000);
                 }
-            } else {
-                if (data.current > 0) {
-                    remainingTimeElement.textContent = '⏳ Calculando tempo restante...';
-                } else {
-                    remainingTimeElement.textContent = '⏳ Aguardando primeiro PDF...';
-                }
-            }
-            
-            // Adicionar informações de velocidade se disponível
-            if (data.current > 0 && data.elapsed_time > 0) {
-                const pdfsPerSecond = (data.current / data.elapsed_time).toFixed(2);
-                const progressDetailsWithSpeed = `${data.message} (${pdfsPerSecond} PDFs/segundo)`;
-                progressDetails.textContent = progressDetailsWithSpeed;
-            }
-            
-            if (data.status === 'completed') {
-                progressStatus.style.color = '#28a745';
-            } else if (data.status === 'error') {
-                progressStatus.style.color = '#dc3545';
-            }
+            })
+            .catch(error => {
+                showLoading(false);
+                showMessage('generateMessage', `❌ Erro ao verificar progresso: ${error.message}`, 'error');
+            });
         }
         
-        function formatTime(seconds) {
-            if (seconds === null || seconds === undefined) {
-                return '00:00';
+        // Download do PDF
+        function downloadPDF() {
+            if (!currentJobId) {
+                showMessage('generateMessage', '❌ Nenhum job disponível para download', 'error');
+                return;
             }
             
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = Math.floor(seconds % 60);
-            
-            if (hours > 0) {
-                return `${hours}h ${minutes}m ${secs}s`;
-            } else if (minutes > 0) {
-                return `${minutes}m ${secs}s`;
-            } else {
-                return `${secs}s`;
-            }
+            window.open(`/api/download/${currentJobId}`, '_blank');
         }
-
-        function showDownloadButton(jobId) {
-            const downloadBtn = document.getElementById('downloadBtn');
-            downloadBtn.style.display = 'inline-block';
-            downloadBtn.onclick = () => downloadResult(jobId);
+        
+        // Verificar status do sistema
+        function checkSystemStatus() {
+            fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                const statusDiv = document.getElementById('systemStatus');
+                statusDiv.innerHTML = `
+                    <p><strong>Status:</strong> ${data.status}</p>
+                    <p><strong>Jobs Ativos:</strong> ${data.active_jobs}</p>
+                    <p><strong>Total de Jobs:</strong> ${data.total_jobs}</p>
+                    <p><strong>Última Atualização:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
+                `;
+            })
+            .catch(error => {
+                document.getElementById('systemStatus').innerHTML = `<p>❌ Erro ao verificar status: ${error.message}</p>`;
+            });
         }
-
-        function downloadResult(jobId) {
-            const downloadBtn = document.getElementById('downloadBtn');
-            downloadBtn.disabled = true;
-            downloadBtn.textContent = 'Baixando...';
-            
-            window.location.href = `/api/download/${jobId}`;
-            
-            setTimeout(() => {
-                downloadBtn.disabled = false;
-                downloadBtn.textContent = '📥 Baixar ZIP com PDFs';
-            }, 3000);
-        }
-
-        function showLoading(show) {
-            document.getElementById('loading').style.display = show ? 'block' : 'none';
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        function showSuccess(message) {
-            const successDiv = document.getElementById('successMessage');
-            successDiv.textContent = message;
-            successDiv.style.display = 'block';
-            setTimeout(() => {
-                successDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        function hideMessages() {
-            document.getElementById('errorMessage').style.display = 'none';
-            document.getElementById('successMessage').style.display = 'none';
-        }
+        
+        // Verificar status inicial
+        checkSystemStatus();
     </script>
 </body>
 </html> 
