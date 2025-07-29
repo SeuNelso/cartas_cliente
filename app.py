@@ -19,7 +19,7 @@ if python_version.major < 3 or (python_version.major == 3 and python_version.min
 
 print(f"✅ Python {python_version.major}.{python_version.minor}.{python_version.micro} detectado")
 print(f"✅ Compatível com pandas 2.0.3")
-print(f"✅ Render.com escolheu esta versão automaticamente")
+print(f"✅ Versão Python 3.13.4 configurada")
 
 # SVG processing
 try:

@@ -12,4 +12,6 @@ services:
       - key: MAX_WORKERS
         value: 4
       - key: MAX_CONTENT_LENGTH
-        value: 52428800 
+        value: 52428800
+      - key: PYTHON_VERSION
+        value: 3.13.4 
