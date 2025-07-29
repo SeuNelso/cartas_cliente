@@ -1,10 +1,7 @@
 services:
   - type: web
-    name: carta-automatica
+    name: carta-automatica-auto
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
-    healthCheckPath: /api/health
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.9.18 
+    healthCheckPath: /api/health 
