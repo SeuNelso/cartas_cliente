@@ -368,6 +368,172 @@ def test_placeholders():
     except Exception as e:
         return jsonify({'error': f'Erro ao testar placeholders: {str(e)}'}), 500
 
+# ===== NOVA FUNCIONALIDADE: PROCESSAMENTO DE EXCEL COM MÚLTIPLOS NÚMEROS =====
+
+def processar_excel_multiplos_numeros(caminho_arquivo: str):
+    """
+    Processa arquivo Excel com múltiplos números por cliente
+    """
+    try:
+        # Ler arquivo Excel
+        headers, data = read_excel_with_openpyxl(caminho_arquivo)
+        
+        # Verificar se tem as colunas necessárias
+        colunas_necessarias = ['Cliente', 'Número', 'ICCID']
+        for coluna in colunas_necessarias:
+            if coluna not in headers:
+                raise ValueError(f"Coluna '{coluna}' não encontrada no Excel")
+        
+        # Agrupar por cliente
+        clientes = {}
+        for row in data:
+            cliente = row['Cliente']
+            if cliente not in clientes:
+                clientes[cliente] = []
+            
+            clientes[cliente].append({
+                'numero': str(row['Número']),
+                'iccid': str(row['ICCID'])
+            })
+        
+        # Gerar cartas para cada cliente
+        cartas_geradas = []
+        max_numeros_por_carta = 6
+        
+        for cliente, numeros in clientes.items():
+            # Dividir em grupos de 6 números
+            grupos = []
+            for i in range(0, len(numeros), max_numeros_por_carta):
+                grupos.append(numeros[i:i + max_numeros_por_carta])
+            
+            for i, grupo in enumerate(grupos):
+                carta = {
+                    'cliente': cliente,
+                    'numeros': grupo,
+                    'numero_carta': i + 1,
+                    'total_cartas': len(grupos)
+                }
+                cartas_geradas.append(carta)
+        
+        return cartas_geradas
+        
+    except Exception as e:
+        raise Exception(f"Erro ao processar Excel: {str(e)}")
+
+def gerar_svg_carta_multiplos_numeros(dados_carta: dict, template_path: str):
+    """
+    Gera SVG da carta substituindo placeholders para múltiplos números
+    """
+    try:
+        # Ler template SVG
+        with open(template_path, 'r', encoding='utf-8') as f:
+            svg_content = f.read()
+        
+        # Preencher números e ICCIDs
+        svg_modificado = svg_content
+        
+        for i, numero_data in enumerate(dados_carta['numeros'], 1):
+            svg_modificado = svg_modificado.replace(
+                f'{{{{NUMERO_{i}}}}}', numero_data['numero']
+            )
+            svg_modificado = svg_modificado.replace(
+                f'{{{{ICCID_{i}}}}}', numero_data['iccid']
+            )
+        
+        # Remover linhas vazias (placeholders não preenchidos)
+        svg_modificado = remover_linhas_vazias_svg(svg_modificado)
+        
+        return svg_modificado
+        
+    except Exception as e:
+        raise Exception(f"Erro ao gerar SVG: {str(e)}")
+
+def remover_linhas_vazias_svg(svg_content: str):
+    """
+    Remove linhas que contêm placeholders vazios
+    """
+    # Padrão para encontrar elementos text com placeholders
+    padrao_numero = r'<text[^>]*>\s*<tspan[^>]*>\s*\{\{NUMERO_\d+\}\}\s*</tspan>\s*</text>'
+    padrao_iccid = r'<text[^>]*>\s*<tspan[^>]*>\s*\{\{ICCID_\d+\}\}\s*</tspan>\s*</text>'
+    
+    # Remover elementos com placeholders não preenchidos
+    svg_content = re.sub(padrao_numero, '', svg_content)
+    svg_content = re.sub(padrao_iccid, '', svg_content)
+    
+    return svg_content
+
+@app.route('/api/processar-excel-multiplos', methods=['POST'])
+def processar_excel_multiplos():
+    """
+    Nova rota para processar Excel com múltiplos números por cliente
+    """
+    try:
+        if 'excel_file' not in request.json:
+            return jsonify({'error': 'Nome do arquivo Excel não fornecido'}), 400
+        
+        excel_file = request.json['excel_file']
+        excel_path = os.path.join(UPLOAD_FOLDER, excel_file)
+        
+        if not os.path.exists(excel_path):
+            return jsonify({'error': 'Arquivo Excel não encontrado'}), 404
+        
+        # Processar Excel
+        cartas = processar_excel_multiplos_numeros(excel_path)
+        
+        return jsonify({
+            'success': True,
+            'total_cartas': len(cartas),
+            'cartas': cartas,
+            'message': f'Processamento concluído! {len(cartas)} cartas serão geradas.'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Erro ao processar Excel: {str(e)}'}), 500
+
+@app.route('/api/gerar-cartas-multiplos', methods=['POST'])
+def gerar_cartas_multiplos():
+    """
+    Gera cartas SVG com múltiplos números por cliente
+    """
+    try:
+        if 'excel_file' not in request.json:
+            return jsonify({'error': 'Nome do arquivo Excel não fornecido'}), 400
+        
+        excel_file = request.json['excel_file']
+        excel_path = os.path.join(UPLOAD_FOLDER, excel_file)
+        
+        if not os.path.exists(excel_path):
+            return jsonify({'error': 'Arquivo Excel não encontrado'}), 404
+        
+        # Processar Excel
+        cartas = processar_excel_multiplos_numeros(excel_path)
+        
+        # Template SVG
+        template_path = os.path.join(TEMPLATE_FOLDER, 'carta-digi-6linhas.svg')
+        if not os.path.exists(template_path):
+            return jsonify({'error': 'Template SVG não encontrado'}), 404
+        
+        # Gerar cartas SVG
+        cartas_svg = []
+        for carta in cartas:
+            svg_content = gerar_svg_carta_multiplos_numeros(carta, template_path)
+            cartas_svg.append({
+                'cliente': carta['cliente'],
+                'numero_carta': carta['numero_carta'],
+                'total_cartas': carta['total_cartas'],
+                'svg_content': svg_content
+            })
+        
+        return jsonify({
+            'success': True,
+            'total_cartas': len(cartas_svg),
+            'cartas': cartas_svg,
+            'message': f'Geração concluída! {len(cartas_svg)} cartas SVG criadas.'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Erro ao gerar cartas: {str(e)}'}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Starting Flask app on port {port}")
