@@ -20,4 +20,13 @@ coverage.xml
 .hypothesis
 uploads/*
 temp/*
-*.pdf 
+*.pdf
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+README_RAILWAY.md
+README_FINAL.md
+README_DEPLOY.md
+ENVIRONMENT_VARIABLES.md 

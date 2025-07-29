@@ -1,13 +1,14 @@
-# 🚂 Deploy no Railway
+# 🚂 Deploy no Railway - Configuração Docker
 
-## 🎯 **Configuração Railway**
+## 🎯 **Configuração Railway com Docker**
 
 ### 📋 **Arquivos de Configuração:**
 
 1. **railway.json** - Configuração principal do Railway
-2. **nixpacks.toml** - Configuração do builder NixPacks
+2. **Dockerfile** - Build com Docker
 3. **Procfile** - Comando de inicialização
-4. **.railwayignore** - Arquivos ignorados no deploy
+4. **.dockerignore** - Otimização do build
+5. **.railwayignore** - Arquivos ignorados no deploy
 
 ### 🔧 **Configuração Atual:**
 
@@ -15,16 +16,44 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "DOCKERFILE"
   },
   "deploy": {
     "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT",
     "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 300,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "healthcheckTimeout": 300
   }
 }
+```
+
+### 🐳 **Dockerfile:**
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar dependências do sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requirements e instalar dependências Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código da aplicação
+COPY . .
+
+# Criar pastas necessárias
+RUN mkdir -p uploads templates_word temp
+
+# Expor porta
+EXPOSE $PORT
+
+# Comando de inicialização
+CMD gunicorn app:app --bind 0.0.0.0:$PORT
 ```
 
 ### 📦 **Dependências:**
@@ -68,19 +97,19 @@ gunicorn==21.2.0
 - `MAX_WORKERS=4`
 - `MAX_CONTENT_LENGTH=52428800`
 
-### ✅ **Vantagens do Railway:**
+### ✅ **Vantagens desta Configuração:**
 
-1. **NixPacks**: Builder mais inteligente
-2. **Auto-detecção**: Detecta Python automaticamente
-3. **Health checks**: Verificação automática de saúde
-4. **Rollback**: Reversão fácil de deploys
+1. **Docker**: Build isolado e reproduzível
+2. **Python 3.11**: Versão estável e compatível
+3. **Dependências do sistema**: GCC/G++ para compilação
+4. **Health checks**: Verificação automática de saúde
 5. **Logs**: Logs detalhados e em tempo real
 
 ### 🎉 **Resultado Esperado:**
 
-- ✅ Railway escolhe Python disponível
-- ✅ pandas 2.1.4 funciona automaticamente
-- ✅ Sem problemas de versão
+- ✅ Docker build sem problemas de ambiente
+- ✅ pandas 2.1.4 funciona com Python 3.11
+- ✅ Sem problemas de dependências do sistema
 - ✅ Deploy rápido e estável
 
-**O Railway deve funcionar melhor que o Render.com!** 🚂 
+**Esta configuração deve resolver os problemas do Railway!** 🚂 
