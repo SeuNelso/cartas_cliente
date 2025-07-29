@@ -13,5 +13,5 @@ setup(
         "Werkzeug==2.3.7",
         "gunicorn==21.2.0",
     ],
-    python_requires=">=3.8,<3.14",
+    python_requires=">=3.8",
 ) 
