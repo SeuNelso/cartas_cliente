@@ -6,7 +6,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "Flask==2.3.3",
-        "pandas==1.5.3",
+        "pandas==2.1.1",
         "openpyxl==3.1.2",
         "cairosvg==2.7.1",
         "PyPDF2==3.0.1",
