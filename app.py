@@ -9,22 +9,41 @@ import threading
 from datetime import datetime
 import shutil
 import re
+import sys
+
+# Verificar versão do Python
+python_version = sys.version_info
+if python_version.major < 3 or (python_version.major == 3 and python_version.minor < 8):
+    print("❌ Python 3.8+ é necessário")
+    sys.exit(1)
+
+print(f"✅ Python {python_version.major}.{python_version.minor}.{python_version.micro} detectado")
 
 # SVG processing
 try:
     from cairosvg import svg2pdf
     SVG_AVAILABLE = True
-except ImportError:
+    print("✅ cairosvg disponível")
+except ImportError as e:
     SVG_AVAILABLE = False
-    print("⚠️ cairosvg not available - SVG processing disabled")
+    print(f"⚠️ cairosvg não disponível: {e}")
 
 # PDF merging
 try:
     from PyPDF2 import PdfMerger
     PDF_MERGE_AVAILABLE = True
-except ImportError:
+    print("✅ PyPDF2 disponível")
+except ImportError as e:
     PDF_MERGE_AVAILABLE = False
-    print("⚠️ PyPDF2 not available - PDF merging disabled")
+    print(f"⚠️ PyPDF2 não disponível: {e}")
+
+# Verificar pandas
+try:
+    pd_version = pd.__version__
+    print(f"✅ pandas {pd_version} disponível")
+except Exception as e:
+    print(f"❌ Erro com pandas: {e}")
+    sys.exit(1)
 
 # Configurações globais
 app = Flask(__name__)
