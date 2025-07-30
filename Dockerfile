@@ -18,17 +18,8 @@ RUN apt-get update && apt-get install -y \
     fonts-noto-mono \
     fonts-noto-color-emoji \
     fontconfig \
-    wget \
-    cabextract \
     && fc-cache -f -v \
     && rm -rf /var/lib/apt/lists/*
-
-# Instalar Microsoft Fonts (Arial, etc.) - método alternativo
-RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends ttf-mscorefonts-installer && \
-    fc-cache -f -v && \
-    rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements e instalar
 COPY requirements.txt .
@@ -42,7 +33,7 @@ COPY templates/ templates/
 RUN mkdir -p uploads temp
 
 # Verificar fontes instaladas
-RUN fc-list | grep -i arial || echo "Arial não encontrada, usando fallback"
+RUN fc-list | grep -i dejavu || echo "DejaVu não encontrada"
 
 # Expor porta
 EXPOSE 8080
