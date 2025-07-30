@@ -2,12 +2,13 @@
 
 echo "🚀 Iniciando aplicação..."
 
-# Criar pastas se não existirem
-mkdir -p uploads temp
-
-# Verificar templates
-echo "📋 Verificando templates..."
-ls -la templates/
+# Definir porta padrão se não estiver definida
+if [ -z "$PORT" ]; then
+    export PORT=8080
+    echo "⚠️  PORT não definida, usando porta padrão: $PORT"
+else
+    echo "✅ PORT definida: $PORT"
+fi
 
 echo "🌐 Iniciando gunicorn na porta $PORT..."
 
@@ -16,5 +17,4 @@ exec gunicorn app:app \
     --bind 0.0.0.0:$PORT \
     --workers 1 \
     --timeout 120 \
-    --log-level info \
-    --preload 
+    --log-level info 
