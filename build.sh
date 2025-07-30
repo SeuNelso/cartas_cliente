@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script de build para Render
-echo "🚀 Iniciando build no Render..."
+# Script de build para Render com Python 3.12.3
+echo "🚀 Iniciando build no Render com Python 3.12.3..."
 
 # Verificar versão do Python
 echo "🐍 Versão do Python:"
