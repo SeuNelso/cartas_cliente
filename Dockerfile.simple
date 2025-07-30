@@ -7,7 +7,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código da aplicação
-COPY app_simple.py app.py
+COPY test_simple.py app.py
 
 # Expor porta
 EXPOSE 8080

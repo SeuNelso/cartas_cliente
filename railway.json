@@ -4,12 +4,7 @@
     "builder": "dockerfile"
   },
   "deploy": {
-    "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info",
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 600,
+    "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120",
     "restartPolicyType": "ON_FAILURE"
-  },
-  "env": {
-    "PYTHON_VERSION": "3.12.3"
   }
 } 

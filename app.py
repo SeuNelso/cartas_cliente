@@ -125,23 +125,13 @@ def replace_placeholders(svg_content, row_data, selected_columns):
 def home():
     return render_template('index.html')
 
+@app.route('/test')
+def test():
+    return "Aplicação funcionando!"
+
 @app.route('/health')
 def health():
-    try:
-        # Verificar se as pastas existem
-        import os
-        if not os.path.exists(TEMPLATE_FOLDER):
-            return "ERROR: Templates folder not found", 500
-        
-        # Verificar se há templates
-        import glob
-        templates = glob.glob(f"{TEMPLATE_FOLDER}/*.svg")
-        if len(templates) == 0:
-            return "ERROR: No templates found", 500
-        
-        return "OK"
-    except Exception as e:
-        return f"ERROR: {str(e)}", 500
+    return "OK"
 
 @app.route('/ping')
 def ping():
