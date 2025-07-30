@@ -370,12 +370,30 @@ def process_pdf_generation_por_cliente(job_id, excel_file, coluna_cliente, colun
                     
                     # Converter SVG para PDF
                     try:
+                        print(f"🔄 Convertendo SVG para PDF...")
+                        print(f"📄 Arquivo SVG: {temp_svg}")
+                        print(f"📄 Arquivo PDF: {temp_pdf}")
+                        
+                        # Verificar fontes disponíveis antes da conversão
+                        try:
+                            import subprocess
+                            result = subprocess.run(['fc-list'], capture_output=True, text=True, timeout=10)
+                            if result.returncode == 0:
+                                fonts = result.stdout
+                                arial_found = 'Arial' in fonts
+                                print(f"🔍 Fontes disponíveis: Arial={'✅' if arial_found else '❌'}")
+                            else:
+                                print("⚠️  Não foi possível verificar fontes")
+                        except Exception as e:
+                            print(f"⚠️  Erro ao verificar fontes: {e}")
+                        
                         svg2pdf(url=temp_svg, write_to=temp_pdf)
-                        print(f"PDF gerado com sucesso: {temp_pdf}")
+                        print(f"✅ PDF gerado com sucesso: {temp_pdf}")
                         pdf_files.append(temp_pdf)
                         total_cartas += 1
                     except Exception as e:
-                        print(f"Erro ao converter SVG para PDF: {e}")
+                        print(f"❌ Erro ao converter SVG para PDF: {e}")
+                        print(f"📄 Conteúdo SVG (primeiras 500 chars): {svg_modificado[:500]}...")
                         continue
                 
                 # Atualizar progresso
