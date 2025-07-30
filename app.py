@@ -127,25 +127,31 @@ def home():
 
 @app.route('/health')
 def health():
-    try:
-        # Verificar se as dependências estão funcionando
-        import openpyxl
-        import cairosvg
-        import PyPDF2
-        return jsonify({
-            'status': 'OK',
-            'message': 'Aplicação funcionando corretamente',
-            'dependencies': 'Todas as dependências carregadas'
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'ERROR',
-            'message': f'Erro na aplicação: {str(e)}'
-        }), 500
+    return "OK"
 
 @app.route('/ping')
 def ping():
     return "pong"
+
+@app.route('/debug')
+def debug():
+    try:
+        import os
+        import glob
+        
+        info = {
+            'status': 'OK',
+            'port': os.environ.get('PORT', '5000'),
+            'templates_folder': TEMPLATE_FOLDER,
+            'uploads_folder': UPLOAD_FOLDER,
+            'temp_folder': TEMP_FOLDER,
+            'templates_count': len(glob.glob(f"{TEMPLATE_FOLDER}/*.svg")),
+            'templates': [os.path.basename(f) for f in glob.glob(f"{TEMPLATE_FOLDER}/*.svg")]
+        }
+        
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({'status': 'ERROR', 'message': str(e)}), 500
 
 @app.route('/api/upload-excel', methods=['POST'])
 def upload_excel():
