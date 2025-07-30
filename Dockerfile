@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.12.3-slim
 
 WORKDIR /app
 
@@ -33,4 +33,4 @@ RUN mkdir -p uploads templates_word temp
 EXPOSE 8080
 
 # Comando de inicialização
-CMD gunicorn app:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --timeout 120 --log-level info 
+CMD gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info 

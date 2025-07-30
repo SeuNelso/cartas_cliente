@@ -127,7 +127,21 @@ def home():
 
 @app.route('/health')
 def health():
-    return "OK"
+    try:
+        # Verificar se as dependências estão funcionando
+        import openpyxl
+        import cairosvg
+        import PyPDF2
+        return jsonify({
+            'status': 'OK',
+            'message': 'Aplicação funcionando corretamente',
+            'dependencies': 'Todas as dependências carregadas'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'ERROR',
+            'message': f'Erro na aplicação: {str(e)}'
+        }), 500
 
 @app.route('/ping')
 def ping():
@@ -666,4 +680,15 @@ def test_placeholders():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Starting Flask app on port {port}")
+    print(f"📁 Templates folder: {TEMPLATE_FOLDER}")
+    print(f"📁 Uploads folder: {UPLOAD_FOLDER}")
+    print(f"📁 Temp folder: {TEMP_FOLDER}")
+    
+    # Verificar se os templates existem
+    import glob
+    templates = glob.glob(f"{TEMPLATE_FOLDER}/*.svg")
+    print(f"📋 Templates encontrados: {len(templates)}")
+    for template in templates:
+        print(f"  - {os.path.basename(template)}")
+    
     app.run(host='0.0.0.0', port=port, debug=True) 
