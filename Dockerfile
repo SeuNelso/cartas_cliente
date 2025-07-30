@@ -7,10 +7,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código da aplicação
-COPY app_simple.py app.py
+COPY app.py .
 
 # Expor porta
 EXPOSE 8080
 
 # Comando de inicialização
-CMD gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info 
+CMD gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 
