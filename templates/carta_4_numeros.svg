@@ -36,59 +36,59 @@
   </text>
   
   <!-- Tabela -->
-  <text x="49.9" y="350.9" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #010101;">
+  <text x="49.9" y="382.5" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #010101;">
     Número
   </text>
   
-  <text x="250.7" y="350.9" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #010101;">
+  <text x="250.7" y="382.5" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #010101;">
     Código ICCID cartão
   </text>
   
-  <line x1="50.5" y1="353.9" x2="451.1" y2="353.9" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="50.5" y1="385.5" x2="451.1" y2="385.5" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
   <!-- Linha 1 -->
-  <text x="49.9" y="365.9" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="49.9" y="397.5" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [NUMERO]
   </text>
   
-  <text x="250.7" y="365.9" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="250.7" y="397.5" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [ICCID]
   </text>
   
-  <line x1="50.5" y1="373.4" x2="451.1" y2="373.4" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="50.5" y1="405.0" x2="451.1" y2="405.0" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
   <!-- Linha 2 -->
-  <text x="49.9" y="385.9" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="49.9" y="417.0" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [NUMERO]
   </text>
   
-  <text x="250.7" y="385.9" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="250.7" y="417.0" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [ICCID]
   </text>
   
-  <line x1="50.5" y1="393.4" x2="451.1" y2="393.4" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="50.5" y1="424.5" x2="451.1" y2="424.5" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
   <!-- Linha 3 -->
-  <text x="49.9" y="405.9" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="49.9" y="436.5" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [NUMERO]
   </text>
   
-  <text x="250.7" y="405.9" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="250.7" y="436.5" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [ICCID]
   </text>
   
-  <line x1="50.5" y1="413.4" x2="451.1" y2="413.4" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="50.5" y1="444.0" x2="451.1" y2="444.0" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
   <!-- Linha 4 -->
-  <text x="49.9" y="425.9" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="49.9" y="456.0" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [NUMERO]
   </text>
   
-  <text x="250.7" y="425.9" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="250.7" y="456.0" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [ICCID]
   </text>
   
-  <line x1="50.5" y1="433.4" x2="451.1" y2="433.4" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="50.5" y1="463.5" x2="451.1" y2="463.5" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
   <!-- Texto de contato -->
   <text x="42.6" y="479.1" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
@@ -112,7 +112,7 @@
   </text>
   
   <!-- Código do cliente -->
-  <text x="460.5" y="620.5" style="font-size: 8px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="390.5" y="620.5" style="font-size: 8px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [CLIENTE]
   </text>
 </svg>

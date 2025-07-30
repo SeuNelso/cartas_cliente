@@ -134,7 +134,7 @@
   </text>
   
   <!-- Código do cliente -->
-  <text x="460.5" y="620.5" style="font-size: 8px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="390.5" y="620.5" style="font-size: 8px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [CLIENTE]
   </text>
 </svg>
