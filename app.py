@@ -263,6 +263,9 @@ def process_pdf_generation_por_cliente(job_id, excel_file, coluna_cliente, colun
                     with open(template_path, 'r', encoding='utf-8') as f:
                         svg_content = f.read()
                     
+                    print(f"Template carregado: {template_file}")
+                    print(f"Quantidade de números: {len(grupo)}")
+                    
                     # Substituir dados do cliente
                     svg_modificado = svg_content
                     
@@ -274,11 +277,15 @@ def process_pdf_generation_por_cliente(job_id, excel_file, coluna_cliente, colun
                     svg_modificado = svg_modificado.replace('$CLIENTE$', cliente_nome)
                     svg_modificado = svg_modificado.replace('#CLIENTE#', cliente_nome)
                     
+                    print(f"Cliente substituído: {cliente_nome}")
+                    
                     # Substituir números e ICCIDs
                     if len(grupo) == 1:
                         # Para template com 1 número, usar placeholders simples
                         numero = grupo[0]['numero']
                         iccid = grupo[0]['iccid']
+                        
+                        print(f"Substituindo 1 número: {numero}, ICCID: {iccid}")
                         
                         svg_modificado = svg_modificado.replace('[NUMERO]', numero)
                         svg_modificado = svg_modificado.replace('{NUMERO}', numero)
@@ -295,11 +302,20 @@ def process_pdf_generation_por_cliente(job_id, excel_file, coluna_cliente, colun
                         svg_modificado = svg_modificado.replace('#ICCID#', iccid)
                     else:
                         # Para templates com múltiplos números, substituir sequencialmente
+                        # Primeiro, contar quantos placeholders existem
+                        num_placeholders = svg_modificado.count('[NUMERO]')
+                        iccid_placeholders = svg_modificado.count('[ICCID]')
+                        
+                        print(f"Encontrados {num_placeholders} placeholders NUMERO e {iccid_placeholders} placeholders ICCID")
+                        
+                        # Substituir apenas os placeholders necessários
                         for i, item in enumerate(grupo):
                             numero = item['numero']
                             iccid = item['iccid']
                             
-                            # Substituir o primeiro [NUMERO] e [ICCID] encontrados
+                            print(f"Substituindo número {i+1}: {numero}, ICCID: {iccid}")
+                            
+                            # Substituir apenas o primeiro placeholder encontrado
                             svg_modificado = svg_modificado.replace('[NUMERO]', numero, 1)
                             svg_modificado = svg_modificado.replace('{NUMERO}', numero, 1)
                             svg_modificado = svg_modificado.replace('{{NUMERO}}', numero, 1)
@@ -313,23 +329,21 @@ def process_pdf_generation_por_cliente(job_id, excel_file, coluna_cliente, colun
                             svg_modificado = svg_modificado.replace('%ICCID%', iccid, 1)
                             svg_modificado = svg_modificado.replace('$ICCID$', iccid, 1)
                             svg_modificado = svg_modificado.replace('#ICCID#', iccid, 1)
-                    
-                    # Limpar placeholders não utilizados apenas para múltiplos números
-                    if len(grupo) > 1:
-                        for i in range(quantidade + 1, 7):  # Limpar placeholders de 7 a 6
-                            svg_modificado = svg_modificado.replace(f'{{NUMERO_{i}}}', '')
-                            svg_modificado = svg_modificado.replace(f'[NUMERO_{i}]', '')
-                            svg_modificado = svg_modificado.replace(f'{{NUMERO{i}}}', '')
-                            svg_modificado = svg_modificado.replace(f'%NUMERO_{i}%', '')
-                            svg_modificado = svg_modificado.replace(f'$NUMERO_{i}$', '')
-                            svg_modificado = svg_modificado.replace(f'#NUMERO_{i}#', '')
-                            
-                            svg_modificado = svg_modificado.replace(f'{{ICCID_{i}}}', '')
-                            svg_modificado = svg_modificado.replace(f'[ICCID_{i}]', '')
-                            svg_modificado = svg_modificado.replace(f'{{ICCID{i}}}', '')
-                            svg_modificado = svg_modificado.replace(f'%ICCID_{i}%', '')
-                            svg_modificado = svg_modificado.replace(f'$ICCID_{i}$', '')
-                            svg_modificado = svg_modificado.replace(f'#ICCID_{i}#', '')
+                        
+                        # Limpar placeholders não utilizados
+                        svg_modificado = svg_modificado.replace('[NUMERO]', '')
+                        svg_modificado = svg_modificado.replace('{NUMERO}', '')
+                        svg_modificado = svg_modificado.replace('{{NUMERO}}', '')
+                        svg_modificado = svg_modificado.replace('%NUMERO%', '')
+                        svg_modificado = svg_modificado.replace('$NUMERO$', '')
+                        svg_modificado = svg_modificado.replace('#NUMERO#', '')
+                        
+                        svg_modificado = svg_modificado.replace('[ICCID]', '')
+                        svg_modificado = svg_modificado.replace('{ICCID}', '')
+                        svg_modificado = svg_modificado.replace('{{ICCID}}', '')
+                        svg_modificado = svg_modificado.replace('%ICCID%', '')
+                        svg_modificado = svg_modificado.replace('$ICCID$', '')
+                        svg_modificado = svg_modificado.replace('#ICCID#', '')
                     
                     # Gerar PDF temporário
                     temp_svg = os.path.join(TEMP_FOLDER, f'temp_cliente_{total_cartas}.svg')
@@ -341,6 +355,18 @@ def process_pdf_generation_por_cliente(job_id, excel_file, coluna_cliente, colun
                     print(f"Gerando PDF para cliente {cliente_nome} com {len(grupo)} números")
                     print(f"Template usado: {template_file}")
                     print(f"SVG salvo em: {temp_svg}")
+                    
+                    # Verificar se ainda há placeholders não substituídos
+                    remaining_placeholders = []
+                    if '[NUMERO]' in svg_modificado:
+                        remaining_placeholders.append('[NUMERO]')
+                    if '[ICCID]' in svg_modificado:
+                        remaining_placeholders.append('[ICCID]')
+                    if '[CLIENTE]' in svg_modificado:
+                        remaining_placeholders.append('[CLIENTE]')
+                    
+                    if remaining_placeholders:
+                        print(f"⚠️  Placeholders não substituídos: {remaining_placeholders}")
                     
                     # Converter SVG para PDF
                     try:
