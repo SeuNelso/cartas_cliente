@@ -25,12 +25,19 @@ RUN python -c "import sys; assert 'pandas' not in sys.modules, 'pandas ainda est
 # Copiar código da aplicação
 COPY app.py .
 COPY templates/ templates/
+COPY start.sh .
 
 # Criar pastas necessárias
 RUN mkdir -p uploads templates_word temp
+
+# Verificar se os templates foram copiados
+RUN ls -la templates/
+
+# Tornar script executável
+RUN chmod +x start.sh
 
 # Expor porta
 EXPOSE 8080
 
 # Comando de inicialização
-CMD gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info --preload 
+CMD ["./start.sh"] 

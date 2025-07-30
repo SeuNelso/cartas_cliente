@@ -127,7 +127,21 @@ def home():
 
 @app.route('/health')
 def health():
-    return "OK"
+    try:
+        # Verificar se as pastas existem
+        import os
+        if not os.path.exists(TEMPLATE_FOLDER):
+            return "ERROR: Templates folder not found", 500
+        
+        # Verificar se há templates
+        import glob
+        templates = glob.glob(f"{TEMPLATE_FOLDER}/*.svg")
+        if len(templates) == 0:
+            return "ERROR: No templates found", 500
+        
+        return "OK"
+    except Exception as e:
+        return f"ERROR: {str(e)}", 500
 
 @app.route('/ping')
 def ping():

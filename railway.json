@@ -5,6 +5,8 @@
   },
   "deploy": {
     "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 600,
     "restartPolicyType": "ON_FAILURE"
   },
   "env": {
