@@ -6,8 +6,6 @@ services:
     buildCommand: chmod +x build.sh && ./build.sh
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.13.4
       - key: PORT
         value: 8080
     healthCheckPath: /health 
