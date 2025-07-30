@@ -4,7 +4,7 @@ echo "🚀 Iniciando aplicação..."
 
 # Definir porta padrão se não estiver definida
 if [ -z "$PORT" ]; then
-    export PORT=8080
+    PORT=8080
     echo "⚠️  PORT não definida, usando porta padrão: $PORT"
 else
     echo "✅ PORT definida: $PORT"

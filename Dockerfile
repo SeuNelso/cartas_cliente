@@ -8,13 +8,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código da aplicação
 COPY app.py .
-COPY start.sh .
-
-# Tornar script executável
-RUN chmod +x start.sh
 
 # Expor porta
 EXPOSE 8080
 
-# Comando de inicialização
-CMD ["./start.sh"] 
+# Comando de inicialização direto
+CMD gunicorn app:app --bind 0.0.0.0:8080 --workers 1 --timeout 120 
