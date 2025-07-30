@@ -1,28 +1,309 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420.9449 595.2755737">
-  <rect width="420.9449" height="595.2755737" style="fill: #fff;"/>
-  <text transform="translate(22.5980649 75.2623291)" style="font-size: 10px;"><tspan style="fill: #231f20; font-family: ArialMT, Arial;"><tspan x="0" y="0">Olá,</tspan></tspan><tspan style="fill: #231f20; font-family: Arial-BoldMT, Arial; font-weight: 700;"><tspan x="0" y="36">Bem-vindo/a à DIGI!</tspan></tspan><tspan style="fill: #010101; font-family: ArialMT, Arial;"><tspan x="0" y="72">Estamos muito entusiasmados por ter-te connosco.</tspan></tspan><tspan style="fill: #010101; font-family: ArialMT, Arial;"><tspan x="0" y="108">Agora, já podes desfrutar das vantagens de ser DIGI, como ter sempre o nosso </tspan></tspan><tspan style="fill: #010101; font-family: ArialMT, Arial;"><tspan x="0" y="120">melhor preço ou receber uma fatura sem surpresas.</tspan></tspan><tspan style="fill: #010101;"><tspan x="0" y="156" style="font-family: ArialMT, Arial;">Aqui, encontras o teu </tspan><tspan x="97.2851562" y="156" style="font-family: Arial-BoldMT, Arial; font-weight: 700;">número de telemóvel</tspan><tspan x="197.3149414" y="156" xml:space="preserve" style="font-family: ArialMT, Arial;"> e o </tspan><tspan x="216.7729492" y="156" style="font-family: Arial-BoldMT, Arial; font-weight: 700;">código ICCID</tspan><tspan x="279.5463867" y="156" xml:space="preserve" style="font-family: ArialMT, Arial;"> associado ao teu </tspan></tspan><tspan style="fill: #010101; font-family: ArialMT, Arial;"><tspan x="0" y="168">novo cartão SIM, para que possas identificá-lo facilmente caso tenhas contratado </tspan></tspan><tspan style="fill: #010101; font-family: ArialMT, Arial;"><tspan x="0" y="180">mais do que um número.</tspan></tspan></text>
-  <text transform="translate(22.5980649 446.2565308)" style="fill: #231f20; font-size: 10px;"><tspan style="letter-spacing: -.0009766em;"><tspan x="0" y="0" style="font-family: ArialMT, Arial;">Em caso de dúvida, não hesites em contactar-nos através do </tspan><tspan x="273.4487305" y="0" style="font-family: Arial-BoldMT, Arial; font-weight: 700;">923 30 90 30</tspan><tspan x="331.7172852" y="0" xml:space="preserve" style="font-family: ArialMT, Arial;"> (gratuito </tspan></tspan><tspan style="font-family: ArialMT, Arial; letter-spacing: -.0009766em;"><tspan x="0" y="12">na rede DIGI e com custo de uma chamada normal para outros operadores). </tspan></tspan><tspan style="font-family: ArialMT, Arial;"><tspan x="0" y="24" style="letter-spacing: -.0009766em;">Estamos aqui para te ajuda</tspan><tspan x="121.4829102" y="24" style="letter-spacing: -.0561523em;">r</tspan><tspan x="124.2514648" y="24" style="letter-spacing: -.0010742em;">.</tspan></tspan><tspan style="font-family: ArialMT, Arial;"><tspan x="0" y="60">Até breve,</tspan></tspan><tspan style="font-family: Arial-BoldMT, Arial; font-weight: 700;"><tspan x="0" y="72" style="letter-spacing: -.0371094em;">A</tspan><tspan x="6.8505859" y="72" xml:space="preserve"> Equipa DIGI.</tspan></tspan></text>
-  <text transform="translate(49.8536801 287.9510765)" style="fill: #010101; font-family: Arial-BoldMT, Arial; font-size: 9px; font-weight: 700;"><tspan x="0" y="0">Número</tspan></text>
-  <text transform="translate(194.6540952 287.9510765)" style="fill: #010101; font-family: Arial-BoldMT, Arial; font-size: 9px; font-weight: 700;"><tspan x="0" y="0">Código ICCID cartão</tspan></text>
-  <text transform="translate(49.898602 302.9257355)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[NUMERO]</tspan></text>
-  <text transform="translate(194.6540952 302.9257355)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[ICCID]</tspan></text>
-  <line x1="50.5112684" y1="290.9531947" x2="351.0908582" y2="290.9531947" style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"/>
-  <line x1="50.5112684" y1="310.4063051" x2="351.0908582" y2="310.4063051" style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"/>
-  <text transform="translate(49.898602 322.3788452)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[NUMERO]</tspan></text>
-  <text transform="translate(194.6540952 322.3788452)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[ICCID]</tspan></text>
-  <line x1="50.5112684" y1="329.8594155" x2="351.0908582" y2="329.8594155" style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"/>
-  <text transform="translate(49.898602 341.831955)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[NUMERO]</tspan></text>
-  <text transform="translate(194.6540952 341.831955)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[ICCID]</tspan></text>
-  <line x1="50.5112684" y1="349.3125259" x2="351.0908582" y2="349.3125259" style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"/>
-  <text transform="translate(49.898602 361.2850647)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[NUMERO]</tspan></text>
-  <text transform="translate(194.6540952 361.2850647)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[ICCID]</tspan></text>
-  <line x1="50.5112684" y1="368.7656362" x2="351.0908582" y2="368.7656362" style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"/>
-  <text transform="translate(49.898602 380.7381859)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[NUMERO]</tspan></text>
-  <text transform="translate(194.6540952 380.7381859)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[ICCID]</tspan></text>
-  <line x1="50.5112684" y1="388.2187466" x2="351.0908582" y2="388.2187466" style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"/>
-  <text transform="translate(49.898602 400.1912918)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[NUMERO]</tspan></text>
-  <text transform="translate(194.6540952 400.1912918)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"><tspan x="0" y="0">[ICCID]</tspan></text>
-  <line x1="50.5112684" y1="407.671857" x2="351.0908582" y2="407.671857" style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"/>
-  <text transform="translate(360.5060239 542.4751892)" style="fill: #010101; font-family: ArialMT, Arial; font-size: 8px;"><tspan x="0" y="0">[CLIENTE]</tspan></text>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="Layer_1"
+   data-name="Layer 1"
+   viewBox="0 0 420.9449 595.2755737"
+   version="1.1"
+   sodipodi:docname="carta_6_numeros.svg"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs50" />
+  <sodipodi:namedview
+     id="namedview50"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.365754"
+     inkscape:cx="210.50643"
+     inkscape:cy="297.63779"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="Layer_1" />
+  <rect
+     width="420.9449"
+     height="595.2755737"
+     style="fill: #fff;"
+     id="rect1" />
+  <text
+     transform="translate(22.5980649 75.2623291)"
+     style="font-size: 10px;"
+     id="text20"><tspan
+       style="fill: #231f20; font-family: ArialMT, Arial;"
+       id="tspan2"><tspan
+         x="0"
+         y="0"
+         id="tspan1">Olá,</tspan></tspan><tspan
+       style="fill: #231f20; font-family: Arial-BoldMT, Arial; font-weight: 700;"
+       id="tspan4"><tspan
+         x="0"
+         y="36"
+         id="tspan3">Bem-vindo/a à DIGI!</tspan></tspan><tspan
+       style="fill: #010101; font-family: ArialMT, Arial;"
+       id="tspan6"><tspan
+         x="0"
+         y="72"
+         id="tspan5">Estamos muito entusiasmados por ter-te connosco.</tspan></tspan><tspan
+       style="fill: #010101; font-family: ArialMT, Arial;"
+       id="tspan8"><tspan
+         x="0"
+         y="108"
+         id="tspan7">Agora, já podes desfrutar das vantagens de ser DIGI, como ter sempre o nosso </tspan></tspan><tspan
+       style="fill: #010101; font-family: ArialMT, Arial;"
+       id="tspan10"><tspan
+         x="0"
+         y="120"
+         id="tspan9">melhor preço ou receber uma fatura sem surpresas.</tspan></tspan><tspan
+       style="fill: #010101;"
+       id="tspan16"><tspan
+         x="0"
+         y="156"
+         style="font-family: ArialMT, Arial;"
+         id="tspan11">Aqui, encontras o teu </tspan><tspan
+         x="97.2851562"
+         y="156"
+         style="font-family: Arial-BoldMT, Arial; font-weight: 700;"
+         id="tspan12">número de telemóvel</tspan><tspan
+         x="197.3149414"
+         y="156"
+         xml:space="preserve"
+         style="font-family: ArialMT, Arial;"
+         id="tspan13"> e o </tspan><tspan
+         x="216.7729492"
+         y="156"
+         style="font-family: Arial-BoldMT, Arial; font-weight: 700;"
+         id="tspan14">código ICCID</tspan><tspan
+         x="279.5463867"
+         y="156"
+         xml:space="preserve"
+         style="font-family: ArialMT, Arial;"
+         id="tspan15"> associado ao teu </tspan></tspan><tspan
+       style="fill: #010101; font-family: ArialMT, Arial;"
+       id="tspan18"><tspan
+         x="0"
+         y="168"
+         id="tspan17">novo cartão SIM, para que possas identificá-lo facilmente caso tenhas contratado </tspan></tspan><tspan
+       style="fill: #010101; font-family: ArialMT, Arial;"
+       id="tspan20"><tspan
+         x="0"
+         y="180"
+         id="tspan19">mais do que um número.</tspan></tspan></text>
+  <text
+     transform="translate(22.5980649 446.2565308)"
+     style="fill: #231f20; font-size: 10px;"
+     id="text35"><tspan
+       style="letter-spacing: -.0009766em;"
+       id="tspan24"><tspan
+         x="0"
+         y="0"
+         style="font-family: ArialMT, Arial;"
+         id="tspan21">Em caso de dúvida, não hesites em contactar-nos através do </tspan><tspan
+         x="273.4487305"
+         y="0"
+         style="font-family: Arial-BoldMT, Arial; font-weight: 700;"
+         id="tspan22">923 30 90 30</tspan><tspan
+         x="331.7172852"
+         y="0"
+         xml:space="preserve"
+         style="font-family: ArialMT, Arial;"
+         id="tspan23"> (gratuito </tspan></tspan><tspan
+       style="font-family: ArialMT, Arial; letter-spacing: -.0009766em;"
+       id="tspan26"><tspan
+         x="0"
+         y="12"
+         id="tspan25">na rede DIGI e com custo de uma chamada normal para outros operadores). </tspan></tspan><tspan
+       style="font-family: ArialMT, Arial;"
+       id="tspan30"><tspan
+         x="0"
+         y="24"
+         style="letter-spacing: -.0009766em;"
+         id="tspan27">Estamos aqui para te ajuda</tspan><tspan
+         x="121.4829102"
+         y="24"
+         style="letter-spacing: -.0561523em;"
+         id="tspan28">r</tspan><tspan
+         x="124.2514648"
+         y="24"
+         style="letter-spacing: -.0010742em;"
+         id="tspan29">.</tspan></tspan><tspan
+       style="font-family: ArialMT, Arial;"
+       id="tspan32"><tspan
+         x="0"
+         y="60"
+         id="tspan31">Até breve,</tspan></tspan><tspan
+       style="font-family: Arial-BoldMT, Arial; font-weight: 700;"
+       id="tspan35"><tspan
+         x="0"
+         y="72"
+         style="letter-spacing: -.0371094em;"
+         id="tspan33">A</tspan><tspan
+         x="6.8505859"
+         y="72"
+         xml:space="preserve"
+         id="tspan34"> Equipa DIGI.</tspan></tspan></text>
+  <text
+     transform="translate(49.8536801 287.9510765)"
+     style="fill: #010101; font-family: Arial-BoldMT, Arial; font-size: 9px; font-weight: 700;"
+     id="text36"><tspan
+       x="0"
+       y="0"
+       id="tspan36">Número</tspan></text>
+  <text
+     transform="translate(194.6540952 287.9510765)"
+     style="fill: #010101; font-family: Arial-BoldMT, Arial; font-size: 9px; font-weight: 700;"
+     id="text37"><tspan
+       x="0"
+       y="0"
+       id="tspan37">Código ICCID cartão</tspan></text>
+  <text
+     transform="translate(49.898602 302.9257355)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text38"><tspan
+       x="0"
+       y="0"
+       id="tspan38">[NUMERO]</tspan></text>
+  <text
+     transform="translate(194.6540952 302.9257355)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text39"><tspan
+       x="0"
+       y="0"
+       id="tspan39">[ICCID]</tspan></text>
+  <line
+     x1="50.5112684"
+     y1="290.9531947"
+     x2="351.0908582"
+     y2="290.9531947"
+     style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"
+     id="line39" />
+  <line
+     x1="50.5112684"
+     y1="310.4063051"
+     x2="351.0908582"
+     y2="310.4063051"
+     style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"
+     id="line40" />
+  <text
+     transform="translate(49.898602 322.3788452)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text40"><tspan
+       x="0"
+       y="0"
+       id="tspan40">[NUMERO]</tspan></text>
+  <text
+     transform="translate(194.6540952 322.3788452)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text41"><tspan
+       x="0"
+       y="0"
+       id="tspan41">[ICCID]</tspan></text>
+  <line
+     x1="50.5112684"
+     y1="329.8594155"
+     x2="351.0908582"
+     y2="329.8594155"
+     style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"
+     id="line41" />
+  <text
+     transform="translate(49.898602 341.831955)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text42"><tspan
+       x="0"
+       y="0"
+       id="tspan42">[NUMERO]</tspan></text>
+  <text
+     transform="translate(194.6540952 341.831955)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text43"><tspan
+       x="0"
+       y="0"
+       id="tspan43">[ICCID]</tspan></text>
+  <line
+     x1="50.5112684"
+     y1="349.3125259"
+     x2="351.0908582"
+     y2="349.3125259"
+     style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"
+     id="line43" />
+  <text
+     transform="translate(49.898602 361.2850647)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text44"><tspan
+       x="0"
+       y="0"
+       id="tspan44">[NUMERO]</tspan></text>
+  <text
+     transform="translate(194.6540952 361.2850647)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text45"><tspan
+       x="0"
+       y="0"
+       id="tspan45">[ICCID]</tspan></text>
+  <line
+     x1="50.5112684"
+     y1="368.7656362"
+     x2="351.0908582"
+     y2="368.7656362"
+     style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"
+     id="line45" />
+  <text
+     transform="translate(49.898602 380.7381859)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text46"><tspan
+       x="0"
+       y="0"
+       id="tspan46">[NUMERO]</tspan></text>
+  <text
+     transform="translate(194.6540952 380.7381859)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text47"><tspan
+       x="0"
+       y="0"
+       id="tspan47">[ICCID]</tspan></text>
+  <line
+     x1="50.5112684"
+     y1="388.2187466"
+     x2="351.0908582"
+     y2="388.2187466"
+     style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"
+     id="line47" />
+  <text
+     transform="translate(49.898602 400.1912918)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text48"><tspan
+       x="0"
+       y="0"
+       id="tspan48">[NUMERO]</tspan></text>
+  <text
+     transform="translate(194.6540952 400.1912918)"
+     style="fill: #010101; font-family: ArialMT, Arial; font-size: 8.5px;"
+     id="text49"><tspan
+       x="0"
+       y="0"
+       id="tspan49">[ICCID]</tspan></text>
+  <line
+     x1="50.5112684"
+     y1="407.671857"
+     x2="351.0908582"
+     y2="407.671857"
+     style="fill: none; stroke: #231f20; stroke-miterlimit: 10;"
+     id="line49" />
+  <text
+     style="font-size:8px;font-family:ArialMT, Arial;fill:#010101"
+     id="text50"
+     x="319.84705"
+     y="542.47516"><tspan
+       x="319.84705"
+       y="542.47516"
+       id="tspan50">[CLIENTE]</tspan></text>
 </svg>
