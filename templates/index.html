@@ -72,9 +72,15 @@
             </div>
             
             <div id="downloadSection" class="hidden">
+                <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p class="text-green-800 text-sm">✅ PDF gerado com sucesso! O sistema será reiniciado automaticamente após o download.</p>
+                </div>
                 <a id="downloadLink" href="#" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-md transition-colors inline-block">
                     Download PDF
                 </a>
+                <button onclick="resetForNewOperation()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md transition-colors ml-4">
+                    Nova Operação
+                </button>
             </div>
         </div>
 
@@ -212,7 +218,20 @@
 
                 if (status === 'completed') {
                     document.getElementById('downloadSection').classList.remove('hidden');
-                    document.getElementById('downloadLink').href = download_url;
+                    const downloadLink = document.getElementById('downloadLink');
+                    downloadLink.href = download_url;
+                    
+                    // Adicionar evento de clique para reload automático
+                    downloadLink.onclick = function() {
+                        // Mostrar indicador de download
+                        downloadLink.textContent = '📥 Baixando...';
+                        downloadLink.classList.add('opacity-75');
+                        
+                        // Reload automático após download
+                        setTimeout(() => {
+                            resetForNewOperation();
+                        }, 1000); // Aguarda 1 segundo para o download iniciar
+                    };
                 } else if (status === 'error') {
                     document.getElementById('progressText').textContent = `Erro: ${message}`;
                 } else {
@@ -223,6 +242,43 @@
                 console.error('Erro ao verificar progresso:', error);
                 setTimeout(monitorProgress, 2000);
             }
+        }
+
+        function resetForNewOperation() {
+            // Limpar formulário
+            document.getElementById('excelFile').value = '';
+            document.getElementById('excelStatus').innerHTML = '';
+            
+            // Esconder seções
+            document.getElementById('columnMapping').classList.add('hidden');
+            document.getElementById('progressSection').classList.add('hidden');
+            document.getElementById('downloadSection').classList.add('hidden');
+            
+            // Resetar variáveis
+            currentExcelFile = '';
+            currentJobId = '';
+            
+            // Resetar progresso
+            document.getElementById('progressText').textContent = 'Iniciando...';
+            document.getElementById('progressPercent').textContent = '0%';
+            document.getElementById('progressBar').style.width = '0%';
+            
+            // Limpar selects
+            document.getElementById('clienteColumn').innerHTML = '';
+            document.getElementById('numeroColumn').innerHTML = '';
+            document.getElementById('iccidColumn').innerHTML = '';
+            
+            // Scroll para o topo
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Mostrar mensagem de sucesso
+            const statusDiv = document.getElementById('excelStatus');
+            statusDiv.innerHTML = '<div class="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">✅ PDF baixado com sucesso! Sistema reiniciado automaticamente para nova operação.</div>';
+            
+            // Limpar mensagem após 4 segundos
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 4000);
         }
     </script>
 </body>
