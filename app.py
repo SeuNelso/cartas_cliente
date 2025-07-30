@@ -42,7 +42,7 @@ def selecionar_template(quantidade_numeros):
 
 def agrupar_por_cliente(data, coluna_cliente):
     """
-    Agrupa os dados por cliente
+    Agrupa os dados por cliente e ordena numericamente
     """
     clientes = defaultdict(list)
     
@@ -50,7 +50,12 @@ def agrupar_por_cliente(data, coluna_cliente):
         cliente = row.get(coluna_cliente, 'Cliente Desconhecido')
         clientes[cliente].append(row)
     
-    return clientes
+    # Ordenar clientes numericamente
+    clientes_ordenados = {}
+    for cliente in sorted(clientes.keys(), key=lambda x: str(x)):
+        clientes_ordenados[cliente] = clientes[cliente]
+    
+    return clientes_ordenados
 
 def dividir_numeros_por_carta(numeros, max_por_carta=6):
     """
@@ -223,8 +228,14 @@ def process_pdf_generation_por_cliente(job_id, excel_file, coluna_cliente, colun
         # Agrupar dados por cliente
         clientes = agrupar_por_cliente(data, coluna_cliente)
         
+        # Log da ordem dos clientes
+        clientes_ordenados = list(clientes.keys())
+        print(f"📋 Clientes processados em ordem numérica:")
+        for i, cliente in enumerate(clientes_ordenados, 1):
+            print(f"  {i}. {cliente}")
+        
         jobs[job_id]['progress'] = 10
-        jobs[job_id]['message'] = f'Processando {len(clientes)} clientes...'
+        jobs[job_id]['message'] = f'Processando {len(clientes)} clientes em ordem numérica...'
         
         # Lista para armazenar PDFs gerados
         pdf_files = []
