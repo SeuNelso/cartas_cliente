@@ -1,22 +1,41 @@
 #!/bin/bash
 
-echo "🚀 Iniciando build da aplicação..."
-echo "📋 Verificando ambiente..."
+# Script de build para Render
+echo "🚀 Iniciando build no Render..."
 
 # Verificar versão do Python
+echo "🐍 Versão do Python:"
 python --version
 
-# Atualizar pip
+# Instalar dependências do sistema necessárias para cairosvg
+echo "📦 Instalando dependências do sistema..."
+apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libgdk-pixbuf2.0-dev \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Atualizar pip para versão mais recente
+echo "🔄 Atualizando pip..."
 pip install --upgrade pip setuptools wheel
 
-# Instalar dependências do requirements.txt
-echo "📦 Instalando dependências..."
-pip install -r requirements.txt
+# Instalar dependências Python uma por uma para evitar conflitos
+echo "🐍 Instalando dependências Python..."
+pip install --no-cache-dir --constraint constraints.txt Flask==3.0.0
+pip install --no-cache-dir --constraint constraints.txt Werkzeug==3.0.1
+pip install --no-cache-dir --constraint constraints.txt openpyxl==3.1.2
+pip install --no-cache-dir --constraint constraints.txt cairosvg==2.8.0
+pip install --no-cache-dir --constraint constraints.txt PyPDF2==3.0.1
+pip install --no-cache-dir --constraint constraints.txt gunicorn==21.2.0
 
-echo "✅ Verificando dependências..."
-python -c "import flask; print(f'Flask {flask.__version__}')"
-python -c "import openpyxl; print('openpyxl OK')"
-python -c "from cairosvg import svg2pdf; print('cairosvg OK')"
-python -c "from PyPDF2 import PdfMerger; print('PyPDF2 OK')"
+# Verificar instalação
+echo "✅ Verificando instalação..."
+python -c "import flask; print(f'✅ Flask {flask.__version__} instalado')"
+python -c "import cairosvg; print('✅ cairosvg instalado com sucesso')"
+python -c "import openpyxl; print('✅ openpyxl instalado com sucesso')"
+python -c "import PyPDF2; print('✅ PyPDF2 instalado com sucesso')"
 
 echo "🎉 Build concluído com sucesso!" 
