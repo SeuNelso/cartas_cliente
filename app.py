@@ -42,7 +42,7 @@ def selecionar_template(quantidade_numeros):
 
 def agrupar_por_cliente(data, coluna_cliente):
     """
-    Agrupa os dados por cliente e ordena numericamente
+    Agrupa os dados por cliente mantendo a ordem original das linhas do Excel
     """
     clientes = defaultdict(list)
     
@@ -50,9 +50,20 @@ def agrupar_por_cliente(data, coluna_cliente):
         cliente = row.get(coluna_cliente, 'Cliente Desconhecido')
         clientes[cliente].append(row)
     
-    # Ordenar clientes numericamente
+    # Manter a ordem original das linhas do Excel
+    # Criar lista ordenada baseada na primeira aparição de cada cliente
+    ordem_clientes = []
+    clientes_vistos = set()
+    
+    for row in data:
+        cliente = row.get(coluna_cliente, 'Cliente Desconhecido')
+        if cliente not in clientes_vistos:
+            ordem_clientes.append(cliente)
+            clientes_vistos.add(cliente)
+    
+    # Criar dicionário ordenado baseado na ordem original
     clientes_ordenados = {}
-    for cliente in sorted(clientes.keys(), key=lambda x: str(x)):
+    for cliente in ordem_clientes:
         clientes_ordenados[cliente] = clientes[cliente]
     
     return clientes_ordenados
@@ -230,12 +241,12 @@ def process_pdf_generation_por_cliente(job_id, excel_file, coluna_cliente, colun
         
         # Log da ordem dos clientes
         clientes_ordenados = list(clientes.keys())
-        print(f"📋 Clientes processados em ordem numérica:")
+        print(f"📋 Clientes processados em ordem das linhas do Excel:")
         for i, cliente in enumerate(clientes_ordenados, 1):
             print(f"  {i}. {cliente}")
         
         jobs[job_id]['progress'] = 10
-        jobs[job_id]['message'] = f'Processando {len(clientes)} clientes em ordem numérica...'
+        jobs[job_id]['message'] = f'Processando {len(clientes)} clientes em ordem das linhas do Excel...'
         
         # Lista para armazenar PDFs gerados
         pdf_files = []
