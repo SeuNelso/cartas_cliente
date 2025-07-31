@@ -2,138 +2,138 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 700">
   <rect width="500" height="700" style="fill: #fff;"/>
   
-  <!-- Texto principal -->
-  <text x="60" y="160" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
+ <!-- Texto principal -->
+  <text x="60" y="160" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
     Olá,
   </text>
   
-  <text x="60" y="196" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #231f20;">
+  <text x="60" y="196" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #231f20;">
     Bem-vindo/a à DIGI!
   </text>
   
-  <text x="60" y="232" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="60" y="232" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     Estamos muito entusiasmados por ter-te connosco.
   </text>
   
-  <text x="60" y="268" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="60" y="268" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     Agora, já podes desfrutar das vantagens de ser DIGI, como ter sempre o nosso
   </text>
   
-  <text x="60" y="280" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="60" y="280" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     melhor preço ou receber uma fatura sem surpresas.
   </text>
   
-  <text x="60" y="316" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="60" y="316" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     Aqui, encontras o teu <tspan style="font-weight: 700;">número de telemóvel</tspan> e o <tspan style="font-weight: 700;">código ICCID</tspan> associado ao teu
   </text>
   
-  <text x="60" y="328" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="60" y="328" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     novo cartão SIM, para que possas identificá-lo facilmente caso tenhas contratado
   </text>
   
-  <text x="60" y="340" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="60" y="340" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     mais do que um número.
   </text>
   
   <!-- Tabela -->
-  <text x="100" y="374.6" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #010101;">
+  <text x="100" y="374.6" style="font-size: 8px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #010101;">
     Número
   </text>
   
-  <text x="250" y="374.6" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #010101;">
+  <text x="220" y="374.6" style="font-size: 8px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #010101;">
     Código ICCID cartão
   </text>
   
-  <line x1="100" y1="377.6" x2="400" y2="377.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="100" y1="377.6" x2="320" y2="377.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
-  <text x="100" y="389.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="100" y="389.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [NUMERO]
   </text>
   
-  <text x="250" y="389.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="220" y="389.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [ICCID]
   </text>
   
-  <line x1="100" y1="393.6" x2="400" y2="393.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="100" y1="393.6" x2="320" y2="393.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
   <!-- Linha 2 -->
-  <text x="100" y="405.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="100" y="405.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [NUMERO]
   </text>
   
-  <text x="250" y="405.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="220" y="405.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [ICCID]
   </text>
   
-  <line x1="100" y1="409.6" x2="400" y2="409.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="100" y1="409.6" x2="320" y2="409.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
   <!-- Linha 3 -->
-  <text x="100" y="421.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="100" y="421.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [NUMERO]
   </text>
   
-  <text x="250" y="421.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="220" y="421.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [ICCID]
   </text>
   
-  <line x1="100" y1="425.6" x2="400" y2="425.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="100" y1="425.6" x2="320" y2="425.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
   <!-- Linha 4 -->
-  <text x="100" y="437.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="100" y="437.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [NUMERO]
   </text>
   
-  <text x="250" y="437.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="220" y="437.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [ICCID]
   </text>
   
-  <line x1="100" y1="441.6" x2="400" y2="441.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="100" y1="441.6" x2="320" y2="441.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
   <!-- Linha 5 -->
-  <text x="100" y="453.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="100" y="453.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [NUMERO]
   </text>
   
-  <text x="250" y="453.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="220" y="453.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [ICCID]
   </text>
   
-  <line x1="100" y1="457.6" x2="400" y2="457.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="100" y1="457.6" x2="320" y2="457.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
   <!-- Linha 6 -->
-  <text x="100" y="469.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="100" y="469.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [NUMERO]
   </text>
   
-  <text x="250" y="469.6" style="font-size: 8.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="220" y="469.6" style="font-size: 7.5px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [ICCID]
   </text>
   
-  <line x1="100" y1="473.6" x2="400" y2="473.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
+  <line x1="100" y1="473.6" x2="320" y2="473.6" style="fill: none; stroke: #231f20; stroke-width: 1;"/>
   
    <!-- Texto de contato -->
-  <text x="60" y="508.2" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
-    Em caso de dúvida, não hesites em contactar-nos através do <tspan style="font-weight: 700;">923 30 90 30</tspan> (gratuito
+  <text x="60" y="508.2" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
+    Em caso de dúvida, não hesites em contactar-nos através do <tspan style="font-weight: 700;">923 30 90 30</tspan>
   </text>
   
-  <text x="60" y="520.2" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
-    na rede DIGI e com custo de uma chamada normal para outros operadores).
+  <text x="60" y="520.2" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
+  (gratuito na rede DIGI e com custo de uma chamada normal para outros
   </text>
   
-  <text x="60" y="532.2" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
-    Estamos aqui para te ajudar.
+  <text x="60" y="532.2" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
+  operadores). Estamos aqui para te ajudar.
   </text>
   
-  <text x="60" y="568.2" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
+  <text x="60" y="568.2" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
     Até breve,
   </text>
   
-  <text x="60" y="580.2" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #231f20;">
+  <text x="60" y="580.2" style="font-size: 9px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; font-weight: 700; fill: #231f20;">
     A Equipa DIGI.
   </text>
   
   <!-- Código do cliente -->
-  <text x="400" y="620.5" style="font-size: 8px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="320" y="698" style="font-size: 7px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [CLIENTE]
   </text>
 </svg>
