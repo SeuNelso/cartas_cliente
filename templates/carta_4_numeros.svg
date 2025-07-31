@@ -91,15 +91,15 @@
   
    <!-- Texto de contato -->
   <text x="60" y="476.2" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
-    Em caso de dúvida, não hesites em contactar-nos através do <tspan style="font-weight: 700;">923 30 90 30</tspan> (gratuito
+    Em caso de dúvida, não hesites em contactar-nos através do <tspan style="font-weight: 700;">923 30 90 30</tspan>
   </text>
   
   <text x="60" y="488.2" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
-    na rede DIGI e com custo de uma chamada normal para outros operadores).
+  (gratuito na rede DIGI e com custo de uma chamada normal para outros
   </text>
   
   <text x="60" y="500.2" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
-    Estamos aqui para te ajudar.
+  operadores). Estamos aqui para te ajudar.
   </text>
   
   <text x="60" y="536.2" style="font-size: 10px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #231f20;">
@@ -111,7 +111,7 @@
   </text>
   
   <!-- Código do cliente -->
-  <text x="400" y="620.5" style="font-size: 8px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
+  <text x="385" y="698" style="font-size: 8px; font-family: DejaVu Sans, Liberation Sans, Arial, sans-serif; fill: #010101;">
     [CLIENTE]
   </text>
 </svg>
