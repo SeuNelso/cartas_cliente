@@ -5,7 +5,7 @@ Sistema completo para geração automatizada de PDFs a partir de dados Excel usa
 ## ✨ Características
 
 - 🌐 **Interface Web Intuitiva** - Upload de arquivos e templates
-- ⚡ **Performance SUPER ULTRA** - 16 workers paralelos
+- ⚡ **Performance** - 16 workers paralelos
 - 📄 **Nomenclatura Inteligente** - `Carta_[NUMERO].pdf`
 - 🔄 **Processamento Assíncrono** - Sem timeout
 - 📊 **Progresso em Tempo Real** - Taxa de velocidade
